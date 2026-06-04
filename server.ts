@@ -13,11 +13,14 @@ const BACKEND_URL =
 console.log("REGISTERING API PROXY");
 
 app.use("/api", (req, res) => {
-
-console.log("BACKEND_URL =", BACKEND_URL);
+  console.log("=================================");
+  console.log("BACKEND_URL =", BACKEND_URL);
+  console.log("METHOD =", req.method);
   console.log("REQ URL =", req.url);
+  console.log("TARGET =", `${BACKEND_URL}/api${req.url}`);
+  console.log("HEADERS =", req.headers);
+  console.log("=================================");
 
-  
   const backend = new URL(BACKEND_URL);
 
   const options = {
@@ -27,9 +30,21 @@ console.log("BACKEND_URL =", BACKEND_URL);
     headers: req.headers
   };
 
+  console.log("OPTIONS =", options);
+
   const proxyReq = https.request(
     options,
     (proxyRes) => {
+      console.log(
+        "BACKEND STATUS =",
+        proxyRes.statusCode
+      );
+
+      console.log(
+        "BACKEND RESPONSE HEADERS =",
+        proxyRes.headers
+      );
+
       res.writeHead(
         proxyRes.statusCode || 200,
         proxyRes.headers
@@ -41,16 +56,29 @@ console.log("BACKEND_URL =", BACKEND_URL);
     }
   );
 
-  req.pipe(proxyReq, {
-    end: true
-  });
-
-  proxyReq.on("error", (err) => {
+  proxyReq.on("error", (err: any) => {
+    console.error("========== PROXY ERROR ==========");
     console.error(err);
+    console.error("NAME:", err?.name);
+    console.error("MESSAGE:", err?.message);
+    console.error("STACK:", err?.stack);
+
+    if ((err as any)?.rawPacket) {
+      console.error(
+        "RAW PACKET:",
+        (err as any).rawPacket.toString()
+      );
+    }
+
+    console.error("=================================");
 
     res.status(502).json({
       error: "Backend unavailable"
     });
+  });
+
+  req.pipe(proxyReq, {
+    end: true
   });
 });
 
