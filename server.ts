@@ -13,6 +13,11 @@ const BACKEND_URL =
 console.log("REGISTERING API PROXY");
 
 app.use("/api", (req, res) => {
+
+console.log("BACKEND_URL =", BACKEND_URL);
+  console.log("REQ URL =", req.url);
+
+  
   const backend = new URL(BACKEND_URL);
 
   const options = {
