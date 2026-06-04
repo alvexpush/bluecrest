@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-brand-primary: #003399;
+  --color-brand-primary-dark: #002b6b;
+  --color-brand-bg: #f8fafc;
+  
+  --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.01), 0 1px 2px -1px rgba(0, 0, 0, 0.01);
+}
+
+.bg-brand-gradient {
+  background: linear-gradient(135deg, #003399, #00f2fe);
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-slate-900 antialiased font-sans;
+  }
+}
+
+/* Custom chart styles */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #f1f5f9;
+}
+
+.recharts-curve-path {
+  stroke-width: 2px;
+  filter: drop-shadow(0 4px 6px rgba(79, 70, 229, 0.1));
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full;
+}
+

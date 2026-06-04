@@ -1,0 +1,6 @@
+{
+  "name": "Blue Crest Banking",
+  "description": "A premium modern banking dashboard for Blue Crest customers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

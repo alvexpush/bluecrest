@@ -1,0 +1,1073 @@
+import express from "express";
+import path from "path";
+import cors from "cors";
+import pg from "pg";
+import http from "http";
+import { createServer as createViteServer } from "vite";
+
+// Fallback user data
+const DEFAULT_USER = {
+  surname: "Barbara",
+  middleName: "",
+  lastName: "Brockman",
+  username: "Barbara98",
+  email: "brockmanbarbara8@gmail.com",
+  pin: "1975",
+  dob: "1975",
+  phone: "252 203 3663",
+  country: "United States of America",
+  state: "NC",
+  city: "Cary",
+  balance: 3800000,
+  gender: "Female",
+  occupation: "",
+  address: "105 Woodland Ridg Court Cary NC",
+  account_number: "****9995",
+  branch_code: "RBSUS002",
+  password: "Personal@444",
+  transfer_count: 0
+};
+
+const DEFAULT_TRANSACTIONS = [
+  {
+    id: "TXN-204881",
+    name: "TechNova Ltd",
+    date: "2020-01-14",
+    time: "09:00",
+    amount: 4850.00,
+    type: 'credit',
+    status: 'Completed',
+    category: 'Salary'
+  },
+  {
+    id: "TXN-204997",
+    name: "Amazon Marketplace",
+    date: "2020-02-03",
+    time: "14:25",
+    amount: 129.99,
+    type: 'debit',
+    status: 'Completed',
+    category: 'Purchase'
+  },
+  {
+    id: "TXN-205114",
+    name: "International Wire",
+    date: "2020-03-11",
+    time: "11:15",
+    amount: 2300.00,
+    type: 'debit',
+    status: 'Completed',
+    category: 'Transfer'
+  },
+  {
+    id: "TXN-205332",
+    name: "Electricity Utility",
+    date: "2020-04-06",
+    time: "16:40",
+    amount: 215.40,
+    type: 'debit',
+    status: 'Completed',
+    category: 'Payment'
+  },
+  {
+    id: "TXN-205781",
+    name: "ATM Cash Withdrawal",
+    date: "2020-05-19",
+    time: "20:10",
+    amount: 500.00,
+    type: 'debit',
+    status: 'Completed',
+    category: 'Withdrawal'
+  },
+  {
+    id: "TXN-206143",
+    name: "Apple Services",
+    date: "2020-06-27",
+    time: "10:30",
+    amount: 89.99,
+    type: 'credit',
+    status: 'Completed',
+    category: 'Refund'
+  },
+  {
+    id: "TXN-206544",
+    name: "Vehicle Insurance",
+    date: "2020-08-08",
+    time: "13:45",
+    amount: 740.00,
+    type: 'debit',
+    status: 'Completed',
+    category: 'Payment'
+  },
+  {
+    id: "TXN-206901",
+    name: "Business Client",
+    date: "2020-09-16",
+    time: "08:20",
+    amount: 6200.00,
+    type: 'credit',
+    status: 'Completed',
+    category: 'Transfer'
+  },
+  {
+    id: "TXN-207334",
+    name: "Hilton Hotel",
+    date: "2020-10-21",
+    time: "19:50",
+    amount: 1120.50,
+    type: 'debit',
+    status: 'Completed',
+    category: 'Travel'
+  },
+  {
+    id: "TXN-207998",
+    name: "Year-End Bonus",
+    date: "2020-12-12",
+    time: "12:00",
+    amount: 3500.00,
+    type: 'credit',
+    status: 'Completed',
+    category: 'Bonus'
+  }
+];
+
+// In-memory fallback database
+let fallbackUser = { ...DEFAULT_USER, first_name: DEFAULT_USER.surname, preferred_currency: "USD", transfer_pin: "1234", kyc_status: "Not Submitted" };
+let fallbackUsers: any[] = [fallbackUser];
+let fallbackTransactions = [...DEFAULT_TRANSACTIONS];
+let fallbackLoans: any[] = [];
+
+// PostgreSQL pool initialization (safeguarded)
+let pool: pg.Pool | null = null;
+const dbUrl = process.env.DATABASE_URL;
+
+if (dbUrl) {
+  console.log("Initializing Postgres pool with database URL...");
+  pool = new pg.Pool({
+    connectionString: dbUrl,
+    ssl: { rejectUnauthorized: false } // Crucial for cloud databases like Neon Postgres
+  });
+} else {
+  console.log("DATABASE_URL env var not detected. Running with in-memory fallback state.");
+}
+
+// Function to initialize tables inside DB
+async function runMigrations() {
+  if (!pool) return;
+  try {
+    const client = await pool.connect();
+    console.log("Running migrations...");
+    try {
+      // 1. Users table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          email VARCHAR(255) PRIMARY KEY,
+          surname VARCHAR(255),
+          first_name VARCHAR(255),
+          middle_name VARCHAR(255),
+          last_name VARCHAR(255),
+          username VARCHAR(255),
+          pin VARCHAR(255),
+          dob VARCHAR(255),
+          phone VARCHAR(255),
+          country VARCHAR(255),
+          state VARCHAR(255),
+          city VARCHAR(255),
+          balance NUMERIC DEFAULT 3800000,
+          gender VARCHAR(100),
+          occupation VARCHAR(255),
+          address TEXT,
+          account_number VARCHAR(255),
+          branch_code VARCHAR(255),
+          password VARCHAR(255),
+          preferred_currency VARCHAR(50) DEFAULT 'USD',
+          transfer_count INT DEFAULT 0,
+          transfer_pin VARCHAR(255) DEFAULT '1234',
+          kyc_status VARCHAR(255) DEFAULT 'Not Submitted',
+          kyc_document_id VARCHAR(255),
+          kyc_front_image TEXT,
+          kyc_back_image TEXT
+        );
+      `);
+
+      // Ensure migrating old databases seamlessly
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(50) DEFAULT 'USD';`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS transfer_pin VARCHAR(255) DEFAULT '1234';`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status VARCHAR(255) DEFAULT 'Not Submitted';`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_document_id VARCHAR(255);`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_front_image TEXT;`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_back_image TEXT;`);
+
+      // 1.5 Loans table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS loans (
+          id VARCHAR(255) PRIMARY KEY,
+          user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+          amount NUMERIC,
+          purpose VARCHAR(255),
+          repayment_months INT,
+          status VARCHAR(100) DEFAULT 'PENDING',
+          fee NUMERIC,
+          created_date VARCHAR(255)
+        );
+      `);
+
+      // 2. Transactions table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS transactions (
+          id VARCHAR(255) PRIMARY KEY,
+          user_email VARCHAR(255) REFERENCES users(email) ON DELETE CASCADE,
+          name VARCHAR(255),
+          date VARCHAR(255),
+          time VARCHAR(255),
+          amount NUMERIC,
+          type VARCHAR(100),
+          status VARCHAR(100),
+          category VARCHAR(255)
+        );
+      `);
+
+      // 3. Check and seed default user
+      const userRes = await client.query("SELECT * FROM users WHERE email = $1", [DEFAULT_USER.email]);
+      if (userRes.rows.length === 0) {
+        console.log("Seeding default user into PG...");
+        await client.query(`
+          INSERT INTO users (
+            email, surname, first_name, middle_name, last_name, username, pin, dob, phone,
+            country, state, city, balance, gender, occupation, address,
+            account_number, branch_code, password, preferred_currency, transfer_count
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        `, [
+          DEFAULT_USER.email, DEFAULT_USER.surname, DEFAULT_USER.surname, DEFAULT_USER.middleName, DEFAULT_USER.lastName,
+          DEFAULT_USER.username, DEFAULT_USER.pin, DEFAULT_USER.dob, DEFAULT_USER.phone,
+          DEFAULT_USER.country, DEFAULT_USER.state, DEFAULT_USER.city, DEFAULT_USER.balance,
+          DEFAULT_USER.gender, DEFAULT_USER.occupation, DEFAULT_USER.address,
+          DEFAULT_USER.account_number, DEFAULT_USER.branch_code, DEFAULT_USER.password, 'USD', DEFAULT_USER.transfer_count
+        ]);
+      }
+
+      // 4. Check and seed default transactions
+      const txnRes = await client.query("SELECT * FROM transactions LIMIT 1");
+      if (txnRes.rows.length === 0) {
+        console.log("Seeding default transactions into PG...");
+        for (const t of DEFAULT_TRANSACTIONS) {
+          await client.query(`
+            INSERT INTO transactions (id, user_email, name, date, time, amount, type, status, category)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `, [t.id, DEFAULT_USER.email, t.name, t.date, t.time, t.amount, t.type, t.status, t.category]);
+        }
+      }
+
+      console.log("Migrations and Seeding complete!");
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("Failed to run migrations. Connection error:", err);
+  }
+}
+
+async function startServer() {
+  const app = express();
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  app.use(cors());
+
+  // Proxy API requests to core banking backend on port 4000
+  app.use("/api", (req, res) => {
+    const options = {
+      hostname: "localhost",
+      port: 4000,
+      path: `/api${req.url}`,
+      method: req.method,
+      headers: req.headers
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+
+    req.pipe(proxyReq, { end: true });
+
+    proxyReq.on("error", (err) => {
+      console.error("Proxy error:", err);
+      res.status(502).json({ error: "Backend server offline" });
+    });
+  });
+
+  app.use(express.json());
+
+  // Run migrations safely
+  await runMigrations();
+
+  // API Routes:
+  // 1. Clear database state (fresh state function for "go freshly on every browser")
+  app.post("/api/reset", async (req, res) => {
+    console.log("Resetting database to default/fresh states...");
+    if (pool) {
+      try {
+        await pool.query("DELETE FROM transactions");
+        await pool.query("DELETE FROM users");
+        // re-run migrations to seed again
+        await runMigrations();
+        return res.json({ status: "success", message: "Database reset to original clean state successfully!" });
+      } catch (err: any) {
+        console.error("DB Reset error:", err);
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      fallbackUser = { ...DEFAULT_USER, first_name: DEFAULT_USER.surname, preferred_currency: "USD", transfer_pin: "1234", kyc_status: "Not Submitted" };
+      fallbackUsers = [fallbackUser];
+      fallbackTransactions = [...DEFAULT_TRANSACTIONS];
+      return res.json({ status: "success", message: "Fallback in-memory database reset successfully!" });
+    }
+  });
+
+  // 1b. Registration Service
+  app.post("/api/v1/users/register", async (req, res) => {
+    const { firstName, lastName, username, email, phone, password, country, preferredCurrency, transferPin } = req.body;
+
+    if (!email || !password || !firstName || !lastName || !username) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    const emailStr = email.toLowerCase().trim();
+    const acctNo = "****" + Math.floor(1000 + Math.random() * 9000);
+    const branchCd = "RBSUS002";
+    const finalPin = transferPin || null;
+
+    if (pool) {
+      try {
+        // Query if exists
+        const { rows } = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [emailStr]);
+        if (rows.length > 0) {
+          return res.status(400).json({ error: "Email address is already registered." });
+        }
+
+        await pool.query(`
+          INSERT INTO users (
+            email, surname, first_name, last_name, username, pin, dob, phone,
+            country, state, city, balance, gender, occupation, address,
+            account_number, branch_code, password, preferred_currency, transfer_count,
+            transfer_pin, kyc_status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        `, [
+          emailStr, firstName, firstName, lastName, username, "1975", "1995", phone || "",
+          country || "United States of America", "NY", "New York", 3800000, "Unspecified", "Customer", "123 Bank Street, Main City",
+          acctNo, branchCd, password, preferredCurrency || 'USD', 0, finalPin, "Not Submitted"
+        ]);
+
+        return res.status(201).json({ status: "success", message: "User registered successfully!" });
+      } catch (err: any) {
+        console.error("Database registration error:", err);
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      // Fallback
+      const existing = fallbackUsers.find(u => u.email.toLowerCase() === emailStr);
+      if (existing) {
+        return res.status(400).json({ error: "Email address is already registered in fallback memory." });
+      }
+
+      const newUser = {
+        email: emailStr,
+        surname: firstName,
+        first_name: firstName,
+        lastName: lastName,
+        username: username,
+        pin: "1975",
+        dob: "1995",
+        phone: phone || "",
+        country: country || "United States of America",
+        state: "NY",
+        city: "New York",
+        balance: 3800000,
+        gender: "Unspecified",
+        occupation: "Customer",
+        address: "123 Bank Street, Main City",
+        account_number: acctNo,
+        branch_code: branchCd,
+        password: password,
+        preferred_currency: preferredCurrency || 'USD',
+        transfer_count: 0,
+        transfer_pin: finalPin,
+        kyc_status: "Not Submitted"
+      };
+      fallbackUsers.push(newUser);
+      return res.status(201).json({ status: "success", message: "User registered successfully!" });
+    }
+  });
+
+  // 1c. Login Service
+  app.post("/api/v1/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Missing email or password." });
+    }
+
+    const emailStr = email.toLowerCase().trim();
+
+    if (pool) {
+      try {
+        const { rows } = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [emailStr]);
+        if (rows.length === 0) {
+          return res.status(401).json({ error: "Invalid email or password." });
+        }
+
+        const user = rows[0];
+        if (user.password !== password) {
+          return res.status(401).json({ error: "Invalid email or password." });
+        }
+
+        const userProfile = {
+          surname: user.surname,
+          middleName: user.middle_name || "",
+          lastName: user.last_name,
+          username: user.username,
+          email: user.email,
+          pin: user.pin,
+          dob: user.dob,
+          phone: user.phone,
+          country: user.country,
+          state: user.state,
+          city: user.city,
+          balance: Number(user.balance),
+          gender: user.gender,
+          occupation: user.occupation || "",
+          address: user.address,
+          accountNumber: user.account_number,
+          branchCode: user.branch_code,
+          preferredCurrency: user.preferred_currency || 'USD',
+          transfer_count: Number(user.transfer_count),
+          transferPin: user.transfer_pin || null,
+          kycStatus: user.kyc_status || "Not Submitted",
+          kycDocumentId: user.kyc_document_id || "",
+          kycFrontImage: user.kyc_front_image || "",
+          kycBackImage: user.kyc_back_image || ""
+        };
+
+        const token = "mock-jwt-token-" + Buffer.from(emailStr).toString("base64");
+        return res.json({
+          status: "success",
+          token: token,
+          user: userProfile
+        });
+      } catch (err: any) {
+        console.error("Database login error:", err);
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const user = fallbackUsers.find(u => u.email.toLowerCase() === emailStr);
+      if (!user || user.password !== password) {
+        return res.status(401).json({ error: "Invalid email or password." });
+      }
+
+      const userProfile = {
+        surname: user.surname,
+        middleName: user.middleName || "",
+        lastName: user.lastName || user.last_name || "",
+        username: user.username,
+        email: user.email,
+        pin: user.pin,
+        dob: user.dob,
+        phone: user.phone,
+        country: user.country,
+        state: user.state,
+        city: user.city,
+        balance: Number(user.balance),
+        gender: user.gender,
+        occupation: user.occupation || "",
+        address: user.address,
+        accountNumber: user.account_number || user.accountNumber,
+        branchCode: user.branch_code || user.branchCode,
+        preferredCurrency: user.preferred_currency || 'USD',
+        transfer_count: Number(user.transfer_count || 0),
+        transferPin: user.transfer_pin || null,
+        kycStatus: user.kyc_status || "Not Submitted",
+        kycDocumentId: user.kyc_document_id || "",
+        kycFrontImage: user.kyc_front_image || "",
+        kycBackImage: user.kyc_back_image || ""
+      };
+
+      const token = "mock-jwt-token-" + Buffer.from(emailStr).toString("base64");
+      return res.json({
+        status: "success",
+        token: token,
+        user: userProfile
+      });
+    }
+  });
+
+  // 2. Fetch User Profile
+  app.get("/api/user", async (req, res) => {
+    const email = (req.query.email as string || DEFAULT_USER.email).toLowerCase();
+    if (pool) {
+      try {
+        const { rows } = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [email]);
+        if (rows.length > 0) {
+          const user = rows[0];
+          // Map snake_case database fields back to camelCase properties matching UserProfile type in React
+          return res.json({
+            surname: user.surname,
+            middleName: user.middle_name || "",
+            lastName: user.last_name,
+            username: user.username,
+            email: user.email,
+            pin: user.pin,
+            dob: user.dob,
+            phone: user.phone,
+            country: user.country,
+            state: user.state,
+            city: user.city,
+            balance: Number(user.balance),
+            gender: user.gender,
+            occupation: user.occupation || "",
+            address: user.address,
+            accountNumber: user.account_number,
+            branchCode: user.branch_code,
+            preferredCurrency: user.preferred_currency || 'USD',
+            transfer_count: Number(user.transfer_count),
+            transferPin: user.transfer_pin || null,
+            kycStatus: user.kyc_status || "Not Submitted",
+            kycDocumentId: user.kyc_document_id || "",
+            kycFrontImage: user.kyc_front_image || "",
+            kycBackImage: user.kyc_back_image || ""
+          });
+        } else {
+          return res.status(404).json({ error: "User not found" });
+        }
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const found = fallbackUsers.find(u => u.email.toLowerCase() === email);
+      if (found) {
+        return res.json({
+          surname: found.surname,
+          middleName: found.middleName || "",
+          lastName: found.lastName || found.last_name || "",
+          username: found.username,
+          email: found.email,
+          pin: found.pin,
+          dob: found.dob,
+          phone: found.phone,
+          country: found.country,
+          state: found.state,
+          city: found.city,
+          balance: Number(found.balance),
+          gender: found.gender,
+          occupation: found.occupation || "",
+          address: found.address,
+          accountNumber: found.account_number || found.accountNumber,
+          branchCode: found.branch_code || found.branchCode,
+          preferredCurrency: found.preferred_currency || found.preferredCurrency || 'USD',
+          transfer_count: Number(found.transfer_count || 0),
+          transferPin: found.transfer_pin || found.transferPin || null,
+          kycStatus: found.kyc_status || found.kycStatus || "Not Submitted",
+          kycDocumentId: found.kyc_document_id || found.kycDocumentId || "",
+          kycFrontImage: found.kyc_front_image || found.kycFrontImage || "",
+          kycBackImage: found.kyc_back_image || found.kycBackImage || ""
+        });
+      }
+      return res.json(fallbackUser);
+    }
+  });
+
+  // 3. Fetch Transactions
+  app.get("/api/transactions", async (req, res) => {
+    const email = (req.query.email as string || DEFAULT_USER.email).toLowerCase();
+    if (pool) {
+      try {
+        const { rows } = await pool.query(
+          "SELECT * FROM transactions WHERE LOWER(user_email) = $1 ORDER BY date DESC, time DESC",
+          [email]
+        );
+        const formattedTxns = rows.map(t => ({
+          id: t.id,
+          name: t.name,
+          date: t.date,
+          time: t.time,
+          amount: Number(t.amount),
+          type: t.type,
+          status: t.status,
+          category: t.category
+        }));
+        return res.json(formattedTxns);
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      return res.json(fallbackTransactions);
+    }
+  });
+
+  // 4. Create Transaction
+  app.post("/api/transfers", async (req, res) => {
+    const {
+      user_email,
+      recipient_name,
+      amount,
+      category,
+      type,
+      status, // 'Pending' or 'Completed'
+      id, // optionally supplied txnId
+    } = req.body;
+
+    const email = (user_email || DEFAULT_USER.email).toLowerCase();
+    const txnId = id || `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
+    const dateStr = new Date().toISOString().split('T')[0];
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+    if (pool) {
+      try {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          // Insert transaction log
+          await client.query(`
+            INSERT INTO transactions (id, user_email, name, date, time, amount, type, status, category)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `, [txnId, email, recipient_name, dateStr, timeStr, amount, type, status || 'Pending', category || 'Fund Transfer']);
+
+          await client.query("COMMIT");
+          return res.json({
+            id: txnId,
+            name: recipient_name,
+            date: dateStr,
+            time: timeStr,
+            amount: Number(amount),
+            type: type || 'debit',
+            status: status || 'Pending',
+            category: category || 'Fund Transfer'
+          });
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        } finally {
+          client.release();
+        }
+      } catch (err: any) {
+        console.error("DB error in transfers:", err);
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const newTxn = {
+        id: txnId,
+        name: recipient_name,
+        date: dateStr,
+        time: timeStr,
+        amount: Number(amount),
+        type: type || 'debit',
+        status: status || 'Pending',
+        category: category || 'Fund Transfer'
+      };
+      fallbackTransactions = [newTxn, ...fallbackTransactions];
+      return res.json(newTxn);
+    }
+  });
+
+  // 5. Complete or Update Pending Transaction
+  app.post("/api/transfers/complete", async (req, res) => {
+    const { txnId, amount, user_email } = req.body;
+    const email = (user_email || DEFAULT_USER.email).toLowerCase();
+
+    if (pool) {
+      try {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          // Update transaction status in DB to Pending or Completed
+          await client.query(
+            "UPDATE transactions SET status = 'Pending' WHERE id = $1 AND LOWER(user_email) = $2",
+            [txnId, email]
+          );
+
+          // Deduct from standard balance and increment count of completed transfers
+          await client.query(
+            "UPDATE users SET balance = GREATEST(0, balance - $1), transfer_count = transfer_count + 1 WHERE LOWER(email) = $2",
+            [amount, email]
+          );
+
+          await client.query("COMMIT");
+          return res.json({ success: true });
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        } finally {
+          client.release();
+        }
+      } catch (err: any) {
+        console.error("DB error completing transfer:", err);
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      // Fallback in-memory
+      fallbackUser.balance = Math.max(0, fallbackUser.balance - amount);
+      fallbackUser.transfer_count += 1;
+      fallbackTransactions = fallbackTransactions.map(t =>
+        t.id === txnId ? { ...t, status: 'Pending' as const } : t
+      );
+      return res.json({ success: true });
+    }
+  });
+
+  // --- PHASE ENDPOINTS ---
+
+  // Phase 3 — Set/Update Transfer PIN
+  // POST /api/v1/users/transfer-pin
+  app.post("/api/v1/users/transfer-pin", async (req, res) => {
+    const { email, transferPin, pin } = req.body;
+    const finalPin = pin || transferPin;
+    const finalEmail = email || req.headers['x-user-email'] || req.query.email;
+    if (!finalEmail || !finalPin) {
+      return res.status(400).json({ error: "Missing email or transfer pin" });
+    }
+    const emailStr = (finalEmail as string).toLowerCase().trim();
+    if (pool) {
+      try {
+        await pool.query("UPDATE users SET transfer_pin = $1 WHERE LOWER(email) = $2", [finalPin, emailStr]);
+        return res.json({ status: "success", message: "Transfer PIN updated successfully!" });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const u = fallbackUsers.find(x => x.email.toLowerCase() === emailStr);
+      if (u) {
+        u.transfer_pin = finalPin;
+        u.transferPin = finalPin;
+        return res.json({ status: "success", message: "Transfer PIN updated successfully!" });
+      }
+      return res.status(404).json({ error: "User not found in fallback memory" });
+    }
+  });
+
+  // Phase 4 — KYC Verifications
+  // POST /api/v1/users/kyc
+  app.post("/api/v1/users/kyc", async (req, res) => {
+    const { email, documentNumber, frontImage, backImage } = req.body;
+    if (!email || !documentNumber) {
+      return res.status(400).json({ error: "Missing email or document ID" });
+    }
+    const emailStr = email.toLowerCase().trim();
+    const frontImg = frontImage || "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?q=80&w=400";
+    const backImg = backImage || "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?q=80&w=400";
+    if (pool) {
+      try {
+        await pool.query(
+          "UPDATE users SET kyc_status = 'Pending', kyc_document_id = $1, kyc_front_image = $2, kyc_back_image = $3 WHERE LOWER(email) = $4",
+          [documentNumber, frontImg, backImg, emailStr]
+        );
+        return res.json({ status: "success", kycStatus: "Pending" });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const u = fallbackUsers.find(x => x.email.toLowerCase() === emailStr);
+      if (u) {
+        u.kyc_status = "Pending";
+        u.kycStatus = "Pending";
+        u.kyc_document_id = documentNumber;
+        u.kycDocumentId = documentNumber;
+        u.kyc_front_image = frontImg;
+        u.kyc_back_image = backImg;
+        return res.json({ status: "success", kycStatus: "Pending" });
+      }
+      return res.status(404).json({ error: "User not found" });
+    }
+  });
+
+  // Phase 5 — Transfers
+  // POST /api/v1/transfers
+  app.post("/api/v1/transfers", async (req, res) => {
+    const { email, recipientName, recipientBank, recipientAccountNumber, amount, description, transferPin } = req.body;
+    if (!email || !recipientName || !amount || !transferPin) {
+      return res.status(400).json({ error: "Missing required transfer fields" });
+    }
+    const emailStr = email.toLowerCase().trim();
+    const parsedAmount = Number(amount);
+
+    if (pool) {
+      try {
+        const { rows } = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [emailStr]);
+        if (rows.length === 0) {
+          return res.status(404).json({ error: "User profile not found." });
+        }
+        const user = rows[0];
+        if (user.transfer_pin !== transferPin) {
+          return res.status(400).json({ error: "Incorrect Transfer PIN." });
+        }
+        if (Number(user.balance) < parsedAmount) {
+          return res.status(400).json({ error: "Insufficient available balance." });
+        }
+
+        const txnId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
+        const dateStr = new Date().toISOString().split('T')[0];
+        const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          // Create Transaction
+          await client.query(`
+            INSERT INTO transactions (id, user_email, name, date, time, amount, type, status, category)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `, [txnId, emailStr, recipientName, dateStr, timeStr, parsedAmount, "debit", "Pending", description || "Fund Transfer"]);
+
+          // Deduct balance and step transfer count
+          await client.query(`
+            UPDATE users SET balance = GREATEST(0, balance - $1), transfer_count = transfer_count + 1 WHERE LOWER(email) = $2
+          `, [parsedAmount, emailStr]);
+
+          await client.query("COMMIT");
+          return res.json({
+            status: "success",
+            transaction: {
+              id: txnId,
+              name: recipientName,
+              date: dateStr,
+              time: timeStr,
+              amount: parsedAmount,
+              type: "debit",
+              status: "Pending",
+              category: description || "Fund Transfer"
+            }
+          });
+        } catch (trxErr) {
+          await client.query("ROLLBACK");
+          throw trxErr;
+        } finally {
+          client.release();
+        }
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const u = fallbackUsers.find(x => x.email.toLowerCase() === emailStr);
+      if (!u) {
+        return res.status(404).json({ error: "User not found." });
+      }
+      if (u.transfer_pin !== transferPin) {
+        return res.status(400).json({ error: "Incorrect Transfer PIN." });
+      }
+      if (u.balance < parsedAmount) {
+        return res.status(400).json({ error: "Insufficient available balance." });
+      }
+
+      u.balance = Math.max(0, u.balance - parsedAmount);
+      u.transfer_count += 1;
+
+      const txnId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
+      const dateStr = new Date().toISOString().split('T')[0];
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+      const newTxn = {
+        id: txnId,
+        name: recipientName,
+        date: dateStr,
+        time: timeStr,
+        amount: parsedAmount,
+        type: 'debit',
+        status: 'Pending',
+        category: description || 'Fund Transfer'
+      };
+      fallbackTransactions = [newTxn, ...fallbackTransactions];
+      return res.json({ status: "success", transaction: newTxn });
+    }
+  });
+
+  // GET /api/v1/transfers
+  app.get("/api/v1/transfers", async (req, res) => {
+    const email = (req.query.email as string || DEFAULT_USER.email).toLowerCase();
+    if (pool) {
+      try {
+        const { rows } = await pool.query(
+          "SELECT * FROM transactions WHERE LOWER(user_email) = $1 AND type = 'debit' ORDER BY date DESC, time DESC",
+          [email]
+        );
+        return res.json(rows);
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      return res.json(fallbackTransactions.filter(t => t.type === 'debit'));
+    }
+  });
+
+  // Phase 6 — Loans
+  // POST /api/v1/loans
+  app.post("/api/v1/loans", async (req, res) => {
+    const { email, amount, purpose, repaymentMonths } = req.body;
+    if (!email || !amount || !purpose || !repaymentMonths) {
+      return res.status(400).json({ error: "Missing required loan fields" });
+    }
+    const emailStr = email.toLowerCase().trim();
+    const lAmount = Number(amount);
+    const fee = Number((lAmount * 0.05).toFixed(2)); // 5% origination fee
+    const loanId = `LOAN-${Math.floor(100000 + Math.random() * 900000)}`;
+    const createdDate = new Date().toISOString().split('T')[0];
+
+    if (pool) {
+      try {
+        await pool.query(
+          "INSERT INTO loans (id, user_email, amount, purpose, repayment_months, status, fee, created_date) VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, $7)",
+          [loanId, emailStr, lAmount, purpose, repaymentMonths, fee, createdDate]
+        );
+        return res.json({
+          status: "success",
+          loan: {
+            id: loanId,
+            amount: lAmount,
+            purpose,
+            repaymentMonths,
+            status: "PENDING",
+            fee,
+            createdDate
+          }
+        });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const newLoan = {
+        id: loanId,
+        user_email: emailStr,
+        amount: lAmount,
+        purpose,
+        repayment_months: repaymentMonths,
+        status: "PENDING",
+        fee,
+        created_date: createdDate
+      };
+      fallbackLoans.push(newLoan);
+      return res.json({ status: "success", loan: newLoan });
+    }
+  });
+
+  // GET /api/v1/loans/user/:id (supports lookup with query identifier or param email)
+  app.get("/api/v1/loans/user/:id", async (req, res) => {
+    const email = req.params.id.toLowerCase();
+    if (pool) {
+      try {
+        const { rows } = await pool.query(
+          "SELECT id, amount, purpose, repayment_months as \"repaymentMonths\", status, fee, created_date as \"createdDate\" FROM loans WHERE LOWER(user_email) = $1 ORDER BY id DESC",
+          [email]
+        );
+        return res.json(rows);
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const uLoans = fallbackLoans
+        .filter((l: any) => l.user_email.toLowerCase() === email)
+        .map((l: any) => ({
+          id: l.id,
+          amount: l.amount,
+          purpose: l.purpose,
+          repaymentMonths: l.repayment_months,
+          status: l.status,
+          fee: l.fee,
+          createdDate: l.created_date
+        }));
+      return res.json(uLoans);
+    }
+  });
+
+  // Phase 7 — Transactions lookup list by user email / id
+  // GET /api/v1/transactions/user/:id
+  app.get("/api/v1/transactions/user/:id", async (req, res) => {
+    const email = req.params.id.toLowerCase();
+    if (pool) {
+      try {
+        const { rows } = await pool.query(
+          "SELECT id, name, date, time, amount, type, status, category FROM transactions WHERE LOWER(user_email) = $1 ORDER BY date DESC, time DESC",
+          [email]
+        );
+        const formatted = rows.map(t => ({
+          id: t.id,
+          name: t.name,
+          date: t.date,
+          time: t.time,
+          amount: Number(t.amount),
+          type: t.type,
+          status: t.status,
+          category: t.category
+        }));
+        return res.json(formatted);
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      // Return transactions filtered by user_email
+      return res.json(fallbackTransactions);
+    }
+  });
+
+  // Sandbox Developer Panel endpoints allowing immediate toggle / status testing
+  app.post("/api/v1/test/sandbox", async (req, res) => {
+    const { email, balance, kycStatus, loanId, loanStatus } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Missing email parameter" });
+    }
+    const emailStr = email.toLowerCase().trim();
+    if (pool) {
+      try {
+        if (balance !== undefined) {
+          await pool.query("UPDATE users SET balance = $1 WHERE LOWER(email) = $2", [Number(balance), emailStr]);
+        }
+        if (kycStatus !== undefined) {
+          await pool.query("UPDATE users SET kyc_status = $1 WHERE LOWER(email) = $2", [kycStatus, emailStr]);
+        }
+        if (loanId !== undefined && loanStatus !== undefined) {
+          await pool.query("UPDATE loans SET status = $1 WHERE id = $2", [loanStatus, loanId]);
+        }
+        return res.json({ success: true, message: "Sandbox preferences applied instantly!" });
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+    } else {
+      const u = fallbackUsers.find(x => x.email.toLowerCase() === emailStr);
+      if (u) {
+        if (balance !== undefined) {
+          u.balance = Number(balance);
+        }
+        if (kycStatus !== undefined) {
+          u.kyc_status = kycStatus;
+          u.kycStatus = kycStatus;
+        }
+      }
+      if (loanId !== undefined && loanStatus !== undefined) {
+        const loan = fallbackLoans.find((x: any) => x.id === loanId);
+        if (loan) {
+          loan.status = loanStatus;
+        }
+      }
+      return res.json({ success: true, message: "Sandbox fallback preferences applied instantly!" });
+    }
+  });
+
+  // Serve static assets/Vite HMR
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+startServer();

@@ -1,0 +1,732 @@
+import React, { useState } from 'react';
+import { Shield, Lock, User, ArrowRight, Smartphone, Globe, Coins, Mail, UserCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { LANGUAGES, getTranslation, LanguageCode } from '../lib/translations';
+
+function cn(...classes: (string | boolean | undefined)[]) {
+  return classes.filter(Boolean).join(' ');
+}
+
+interface LoginPageProps {
+  onLogin: (userProfile: any, token: string) => void;
+  lang: LanguageCode;
+  onLanguageChange: (code: LanguageCode) => void;
+}
+
+const COUNTRY_CURRENCY_LIST = [
+  { country: "United States of America", currency: "USD", symbol: "$" },
+  { country: "United Kingdom", currency: "GBP", symbol: "£" },
+  { country: "Canada", currency: "CAD", symbol: "$" },
+  { country: "United Arab Emirates", currency: "AED", symbol: "د.إ" },
+  { country: "European Union Countries", currency: "EUR", symbol: "€" },
+  { country: "Australia", currency: "AUD", symbol: "$" },
+  { country: "Nigeria", currency: "NGN", symbol: "₦" },
+  { country: "Albania", currency: "ALL", symbol: "Lek" },
+  { country: "Afghanistan", currency: "AFN", symbol: "؋" },
+  { country: "Argentina", currency: "ARS", symbol: "$" },
+  { country: "Aruba", currency: "AWG", symbol: "ƒ" },
+  { country: "Azerbaijan", currency: "AZN", symbol: "ман" },
+  { country: "Bahamas", currency: "BSD", symbol: "$" },
+  { country: "Barbados", currency: "BBD", symbol: "$" },
+  { country: "Belarus", currency: "BYR", symbol: "p." },
+  { country: "Belize", currency: "BZD", symbol: "BZ$" },
+  { country: "Bermuda", currency: "BMD", symbol: "$" },
+  { country: "Bolivia", currency: "BOB", symbol: "$b" },
+  { country: "Bosnia and Herzegovina", currency: "BAM", symbol: "KM" },
+  { country: "Botswana", currency: "BWP", symbol: "P" },
+  { country: "Bulgaria", currency: "BGN", symbol: "лв" },
+  { country: "Brazil", currency: "BRL", symbol: "R$" },
+  { country: "Brunei", currency: "BND", symbol: "$" },
+  { country: "Cambodia", currency: "KHR", symbol: "៛" },
+  { country: "Cayman Islands", currency: "KYD", symbol: "$" },
+  { country: "Chile", currency: "CLP", symbol: "$" },
+  { country: "China", currency: "CNY", symbol: "¥" },
+  { country: "Colombia", currency: "COP", symbol: "$" },
+  { country: "Costa Rica", currency: "CRC", symbol: "₡" },
+  { country: "Croatia", currency: "HRK", symbol: "kn" },
+  { country: "Cuba", currency: "CUP", symbol: "₱" },
+  { country: "Czech Republic", currency: "CZK", symbol: "Kč" },
+  { country: "Denmark", currency: "DKK", symbol: "kr" },
+  { country: "Dominican Republic", currency: "DOP", symbol: "RD$" },
+  { country: "East Caribbean", currency: "XCD", symbol: "$" },
+  { country: "Egypt", currency: "EGP", symbol: "£" },
+  { country: "El Salvador", currency: "SVC", symbol: "$" },
+  { country: "Falkland Islands", currency: "FKP", symbol: "£" },
+  { country: "Fiji", currency: "FJD", symbol: "$" },
+  { country: "Ghana", currency: "GHC", symbol: "¢" },
+  { country: "Gibraltar", currency: "GIP", symbol: "£" },
+  { country: "Guatemala", currency: "GTQ", symbol: "Q" },
+  { country: "Guernsey", currency: "GGP", symbol: "£" },
+  { country: "Guyana", currency: "GYD", symbol: "$" },
+  { country: "Honduras", currency: "HNL", symbol: "L" },
+  { country: "Hong Kong", currency: "HKD", symbol: "$" },
+  { country: "Hungary", currency: "HUF", symbol: "Ft" },
+  { country: "Iceland", currency: "ISK", symbol: "kr" },
+  { country: "India", currency: "INR", symbol: "₹" },
+  { country: "Indonesia", currency: "IDR", symbol: "Rp" },
+  { country: "Iran", currency: "IRR", symbol: "﷼" },
+  { country: "Isle of Man", currency: "IMP", symbol: "£" },
+  { country: "Israel", currency: "ILS", symbol: "₪" },
+  { country: "Jamaica", currency: "JMD", symbol: "J$" },
+  { country: "Japan", currency: "JPY", symbol: "¥" },
+  { country: "Jersey", currency: "JEP", symbol: "£" },
+  { country: "Kazakhstan", currency: "KZT", symbol: "лв" },
+  { country: "North Korea", currency: "KPW", symbol: "₩" },
+  { country: "South Korea", currency: "KRW", symbol: "₩" },
+  { country: "Kyrgyzstan", currency: "KGS", symbol: "лв" },
+  { country: "Laos", currency: "LAK", symbol: "₭" },
+  { country: "Latvia", currency: "LVL", symbol: "Ls" },
+  { country: "Lebanon", currency: "LBP", symbol: "£" },
+  { country: "Liberia", currency: "LRD", symbol: "$" },
+  { country: "Switzerland", currency: "CHF", symbol: "CHF" },
+  { country: "Lithuania", currency: "LTL", symbol: "Lt" },
+  { country: "Macedonia", currency: "MKD", symbol: "ден" },
+  { country: "Malaysia", currency: "MYR", symbol: "RM" },
+  { country: "Mauritius", currency: "MUR", symbol: "₨" },
+  { country: "Mexico", currency: "MXN", symbol: "$" },
+  { country: "Mongolia", currency: "MNT", symbol: "₮" },
+  { country: "Mozambique", currency: "MZN", symbol: "MT" },
+  { country: "Namibia", currency: "NAD", symbol: "$" },
+  { country: "Nepal", currency: "NPR", symbol: "₨" },
+  { country: "Netherlands Antilles", currency: "ANG", symbol: "ƒ" },
+  { country: "New Zealand", currency: "NZD", symbol: "$" },
+  { country: "Nicaragua", currency: "NIO", symbol: "C$" },
+  { country: "Norway", currency: "NOK", symbol: "kr" },
+  { country: "Oman", currency: "OMR", symbol: "﷼" },
+  { country: "Pakistan", currency: "PKR", symbol: "₨" },
+  { country: "Panama", currency: "PAB", symbol: "B/." },
+  { country: "Paraguay", currency: "PYG", symbol: "Gs" },
+  { country: "Peru", currency: "PEN", symbol: "S/." },
+  { country: "Philippines", currency: "PHP", symbol: "Php" },
+  { country: "Poland", currency: "PLN", symbol: "zł" },
+  { country: "Qatar", currency: "QAR", symbol: "﷼" },
+  { country: "Romania", currency: "RON", symbol: "lei" },
+  { country: "Russia", currency: "RUB", symbol: "руб" },
+  { country: "Saint Helena", currency: "SHP", symbol: "£" },
+  { country: "Saudi Arabia", currency: "SAR", symbol: "﷼" },
+  { country: "Serbia", currency: "RSD", symbol: "Дин." },
+  { country: "Seychelles", currency: "SCR", symbol: "₨" },
+  { country: "Singapore", currency: "SGD", symbol: "$" },
+  { country: "Solomon Islands", currency: "SBD", symbol: "$" },
+  { country: "Somalia", currency: "SOS", symbol: "S" },
+  { country: "South Africa", currency: "ZAR", symbol: "R" },
+  { country: "Sri Lanka", currency: "LKR", symbol: "₨" },
+  { country: "Sweden", currency: "SEK", symbol: "kr" },
+  { country: "Suriname", currency: "SRD", symbol: "$" },
+  { country: "Syria", currency: "SYP", symbol: "£" },
+  { country: "Taiwan", currency: "TWD", symbol: "NT$" },
+  { country: "Thailand", currency: "THB", symbol: "฿" },
+  { country: "Trinidad and Tobago", currency: "TTD", symbol: "TT$" },
+  { country: "Turkey", currency: "TRY", symbol: "₺" },
+  { country: "Tuvalu", currency: "TVD", symbol: "$" },
+  { country: "Ukraine", currency: "UAH", symbol: "₴" },
+  { country: "Uruguay", currency: "UYU", symbol: "$U" },
+  { country: "Uzbekistan", currency: "UZS", symbol: "лв" },
+  { country: "Venezuela", currency: "VEF", symbol: "Bs" },
+  { country: "Vietnam", currency: "VND", symbol: "₫" },
+  { country: "Yemen", currency: "YER", symbol: "﷼" },
+  { country: "Zimbabwe", currency: "ZWD", symbol: "Z$" },
+  { country: "Algeria", currency: "DZD", symbol: "DA" },
+  { country: "Angola", currency: "AOA", symbol: "Kz" },
+  { country: "Armenia", currency: "AMD", symbol: "֏" },
+  { country: "Bahrain", currency: "BHD", symbol: "BD" },
+  { country: "Bangladesh", currency: "BDT", symbol: "৳" },
+  { country: "West African CFA countries", currency: "XOF", symbol: "CFA" },
+  { country: "Burundi", currency: "BIF", symbol: "FBu" },
+  { country: "Central African CFA countries", currency: "XAF", symbol: "FCFA" },
+  { country: "Cape Verde", currency: "CVE", symbol: "Esc" },
+  { country: "Comoros", currency: "KMF", symbol: "CF" },
+  { country: "Djibouti", currency: "DJF", symbol: "Fdj" },
+  { country: "Eritrea", currency: "ERN", symbol: "Nkf" },
+  { country: "Ethiopia", currency: "ETB", symbol: "Br" },
+  { country: "CFP Franc countries", currency: "XPF", symbol: "₣" },
+  { country: "Gambia", currency: "GMD", symbol: "D" },
+  { country: "Georgia", currency: "GEL", symbol: "ლ" },
+  { country: "Ghana", currency: "GHS", symbol: "GH₵" },
+  { country: "Guinea", currency: "GNF", symbol: "FG" },
+  { country: "Iraq", currency: "IQD", symbol: "ع.د" },
+  { country: "Jordan", currency: "JOD", symbol: "د.ا" },
+  { country: "Kenya", currency: "KES", symbol: "Ksh" },
+  { country: "Kuwait", currency: "KWD", symbol: "د.ك" },
+  { country: "Libya", currency: "LYD", symbol: "ل.د" },
+  { country: "Macau", currency: "MOP", symbol: "MOP$" },
+  { country: "Madagascar", currency: "MGA", symbol: "Ar" },
+  { country: "Malawi", currency: "MWK", symbol: "MK" },
+  { country: "Maldives", currency: "MVR", symbol: "Rf" },
+  { country: "Mauritania", currency: "MRO", symbol: "UM" },
+  { country: "Moldova", currency: "MDL", symbol: "L" },
+  { country: "Morocco", currency: "MAD", symbol: "MAD" },
+  { country: "Myanmar", currency: "MMK", symbol: "K" },
+  { country: "Papua New Guinea", currency: "PGK", symbol: "K" },
+  { country: "Rwanda", currency: "RWF", symbol: "R₣" },
+  { country: "Samoa", currency: "WST", symbol: "WS$" },
+  { country: "Sao Tome", currency: "STD", symbol: "Db" },
+  { country: "Sierra Leone", currency: "SLL", symbol: "Le" },
+  { country: "South Sudan", currency: "SSP", symbol: "£" },
+  { country: "Sudan", currency: "SDG", symbol: "ج.س" },
+  { country: "Swaziland", currency: "SZL", symbol: "L" },
+  { country: "Tajikistan", currency: "TJS", symbol: "ЅM" },
+  { country: "Tanzania", currency: "TZS", symbol: "TSh" },
+  { country: "Tonga", currency: "TOP", symbol: "T$" },
+  { country: "Tunisia", currency: "TND", symbol: "DT" },
+  { country: "Turkmenistan", currency: "TMT", symbol: "T" },
+  { country: "Uganda", currency: "UGX", symbol: "USh" },
+  { country: "Vanuatu", currency: "VUV", symbol: "VT" },
+  { country: "Zambia", currency: "ZMW", symbol: "ZK" }
+];
+
+export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPageProps) {
+  const [view, setView] = useState<'login' | 'register'>('login');
+  
+  // Login State
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('941085');
+  const [step, setStep] = useState(1);
+  const [pendingLoginUser, setPendingLoginUser] = useState<any>(null);
+  const [pendingToken, setPendingToken] = useState('');
+
+  // Registration State
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regCountry, setRegCountry] = useState('United States of America');
+  const [regCurrency, setRegCurrency] = useState('USD');
+  const [regDob, setRegDob] = useState('');
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const t = (key: string, fb: string = "") => getTranslation(lang, key, fb);
+  const activeDirection = LANGUAGES.find(l => l.code === lang)?.direction || 'ltr';
+
+  const handleLoginNext = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (step === 1) {
+      if (!email) {
+        setError(t('emailAddress', 'Please enter your email address.'));
+        return;
+      }
+      setStep(2);
+    } else if (step === 2) {
+      if (!password) {
+        setError(t('password', 'Please enter your secure password.'));
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+        setIsLoading(false);
+
+        if (!response.ok) {
+          setError(data.error || 'Invalid credentials or login failure.');
+          return;
+        }
+
+        // Successfully logged in
+        if (data && data.data) {
+          setPendingLoginUser(data.data.user);
+          setPendingToken(data.data.token);
+        } else {
+          setPendingLoginUser(data.user);
+          setPendingToken(data.token);
+        }
+        setStep(3); // Transition to Secure PIN code
+      } catch (err: any) {
+        setIsLoading(false);
+        setError('Server authentication connection error.');
+      }
+    }
+  };
+
+  const verifyConfirmPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      onLogin(pendingLoginUser, pendingToken);
+    }, 1000);
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (!regEmail || !regPassword || !regFirstName || !regLastName || !regUsername) {
+      setError('Please fill in all required setup details.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/v1/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: regFirstName,
+          last_name: regLastName,
+          username: regUsername,
+          email: regEmail,
+          phone: regPhone,
+          password: regPassword,
+          country: regCountry,
+          preferred_currency: regCurrency,
+          date_of_birth: regDob,
+          transfer_pin: null
+        })
+      });
+
+      const data = await response.json();
+      setIsLoading(false);
+
+      if (!response.ok) {
+        setError(data.error || 'Registration failed.');
+        return;
+      }
+
+      // Success! Switch back to login view, preload registered email
+      setSuccessMsg('Account registered successfully! Please log in to your profile.');
+      setEmail(regEmail);
+      setView('login');
+      setStep(1);
+      
+      // Cleanup registration inputs
+      setRegFirstName('');
+      setRegLastName('');
+      setRegUsername('');
+      setRegEmail('');
+      setRegPhone('');
+      setRegPassword('');
+      setRegDob('');
+    } catch (err: any) {
+      setIsLoading(false);
+      setError('Could not connect to registration services.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative" dir={activeDirection}>
+      
+      {/* Floating Language Dropdown selector */}
+      <div className="absolute top-6 right-6 z-30">
+        <select
+          value={lang}
+          onChange={(e) => onLanguageChange(e.target.value as LanguageCode)}
+          className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer hover:bg-slate-50 transition-all shadow-md flex items-center"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.flag} &nbsp; {l.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col md:flex-row min-h-[650px] relative"
+      >
+        {/* Left Side - Brand Branding Info block */}
+        <div className="md:w-[40%] bg-[#003399] p-10 md:p-12 text-white flex flex-col justify-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900 to-[#003399] opacity-70" />
+          <div className="relative z-10 flex flex-col justify-between h-full">
+            <div>
+              <div className="flex items-center gap-3 mb-12">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
+                  <Shield className="w-7 h-7 text-white" />
+                </div>
+                <span className="text-2xl font-bold tracking-tight">{t('brand', 'Blue Crest')}</span>
+              </div>
+
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+                {view === 'login' ? t('welcome', 'Welcome Back') : t('createAccountTitle', 'Create Account')}
+              </h1>
+              <p className="text-blue-100/80 text-base mb-10">
+                {view === 'login' 
+                  ? t('welcomeDesc', 'Access your premier financial portal securely.') 
+                  : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 shrink-0">
+                  <Shield className="w-5 h-5 text-blue-200" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Regulatory Compliance</p>
+                  <p className="text-blue-200/60 text-xs">FDIC insured up to $250,000</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 shrink-0">
+                  <Lock className="w-5 h-5 text-blue-200" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Multi-Factor Active</p>
+                  <p className="text-blue-100/60 text-xs">Protected dynamic pin verifications</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Dynamic Forms */}
+        <div className="flex-1 p-8 md:p-12 flex flex-col justify-center bg-white relative">
+          <div className="w-full">
+            
+            <AnimatePresence mode="wait">
+              {view === 'login' ? (
+                <motion.div 
+                  key="login-view"
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 15 }}
+                  transition={{ duration: 0.2 }}
+                  className="max-w-md mx-auto w-full"
+                >
+                  <div className="mb-8 text-center md:text-left">
+                    <h2 className="text-3xl font-bold text-slate-900 mb-1">{t('signIn', 'Sign In')}</h2>
+                    <p className="text-slate-500 text-sm font-medium">{t('verifyIdentityDesc', 'Verify your identity to load dynamic balances')}</p>
+                  </div>
+
+                  {/* Flow progress indicators */}
+                  <div className="flex items-center justify-center gap-4 mb-8">
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all", step >= 1 ? "bg-[#003399] text-white" : "bg-slate-100 text-slate-400")}>1</div>
+                    <div className={cn("h-px w-8 transition-colors", step >= 2 ? "bg-[#003399]" : "bg-slate-100")} />
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all", step >= 2 ? "bg-[#003399] text-white" : "bg-slate-100 text-slate-400")}>2</div>
+                    <div className={cn("h-px w-8 transition-colors", step >= 3 ? "bg-[#003399]" : "bg-slate-100")} />
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all", step >= 3 ? "bg-[#003399] text-white" : "bg-slate-100 text-slate-400")}>3</div>
+                  </div>
+
+                  {successMsg && (
+                    <div className="mb-6 bg-emerald-50 text-emerald-700 text-xs font-semibold p-4 rounded-xl border border-emerald-100 text-center animate-pulse">
+                      {successMsg}
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="mb-6 bg-rose-50 text-rose-600 text-xs font-semibold p-4 rounded-xl border border-rose-100 text-center italic">
+                      {error}
+                    </div>
+                  )}
+
+                  {step === 1 && (
+                    <form onSubmit={handleLoginNext} className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('emailAddress', 'Email Address')}</label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                          <input 
+                            type="email" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="name@example.com"
+                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        type="submit"
+                        className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98]"
+                      >
+                        {t('continue', 'Continue')} <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </form>
+                  )}
+
+                  {step === 2 && (
+                    <form onSubmit={handleLoginNext} className="space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">{t('password', 'Security Password')}</label>
+                          <span className="text-xs font-semibold text-slate-400 font-mono select-none">{email}</span>
+                        </div>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                          <input 
+                            type="password" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-70"
+                      >
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('verifyAccount', 'Verify Account')} <ArrowRight className="w-5 h-5" /></>}
+                      </button>
+                      <button type="button" onClick={() => setStep(1)} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-[#003399] text-center block">{t('orUseAnotherEmail', 'Or use another email')}</button>
+                    </form>
+                  )}
+
+                  {step === 3 && (
+                    <form onSubmit={verifyConfirmPassword} className="space-y-6">
+                      <div className="space-y-2">
+                        <div className="text-center md:text-left">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">MFA Security Clearance</label>
+                          <span className="text-slate-400 text-xs font-medium">Enter the 2FA confirmation code sent to your device</span>
+                        </div>
+                        <div className="relative mt-2">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                          <input 
+                            type="text" 
+                            maxLength={6}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, ''))}
+                            placeholder="941085"
+                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-bold tracking-widest focus:bg-white focus:border-blue-200 outline-none transition-all text-slate-800"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-70"
+                      >
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Approve & Enter Portal <ArrowRight className="w-5 h-5" /></>}
+                      </button>
+                    </form>
+                  )}
+
+                  <div className="mt-8 text-center animate-fade-in">
+                    <p className="text-slate-500 text-sm font-medium">
+                      {t('noAccount', "Don't have an account?")}{' '}
+                      <button 
+                        onClick={() => {
+                          setError('');
+                          setSuccessMsg('');
+                          setView('register');
+                        }} 
+                        className="text-[#003399] font-bold hover:underline"
+                      >
+                        {t('createAccount', 'Create an Account')}
+                      </button>
+                    </p>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="register-view"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  transition={{ duration: 0.2 }}
+                  className="max-w-xl mx-auto w-full"
+                >
+                  <div className="mb-6 text-center md:text-left">
+                    <h2 className="text-3xl font-bold text-slate-900 mb-1">{t('createAccountTitle', 'Create Account')}</h2>
+                    <p className="text-slate-500 text-sm font-medium">{t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers')}</p>
+                  </div>
+
+                  {error && (
+                    <div className="mb-4 bg-rose-50 text-rose-600 text-xs font-semibold p-4 rounded-xl border border-rose-100 text-center">
+                      {error}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      
+                      {/* First Name */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('firstName', 'First Name')}</label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="text" 
+                            value={regFirstName}
+                            onChange={(e) => setRegFirstName(e.target.value)}
+                            placeholder="John"
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Last Name */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('lastName', 'Last Name')}</label>
+                        <div className="relative">
+                          <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="text" 
+                            value={regLastName}
+                            onChange={(e) => setRegLastName(e.target.value)}
+                            placeholder="Doe"
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Username */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('username', 'Username')}</label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="text" 
+                            value={regUsername}
+                            onChange={(e) => setRegUsername(e.target.value)}
+                            placeholder="johndoe12"
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('emailAddress', 'Email Address')}</label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="email" 
+                            value={regEmail}
+                            onChange={(e) => setRegEmail(e.target.value)}
+                            placeholder="john@example.com"
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Phone */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('phoneNumber', 'Phone Number')}</label>
+                        <div className="relative">
+                          <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="tel" 
+                            value={regPhone}
+                            onChange={(e) => setRegPhone(e.target.value)}
+                            placeholder="+1 (555) 019-3820"
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Password */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('password', 'Security Password')}</label>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <input 
+                            type="password" 
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Date of Birth */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('dateOfBirth', 'Date of Birth')}</label>
+                        <div className="relative">
+                          <input 
+                            type="date" 
+                            value={regDob}
+                            onChange={(e) => setRegDob(e.target.value)}
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl px-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all text-slate-800"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Country */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('country', 'Country')}</label>
+                        <div className="relative">
+                          <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                          <select 
+                            value={regCountry}
+                            onChange={(e) => {
+                              const selected = e.target.value;
+                              setRegCountry(selected);
+                              const found = COUNTRY_CURRENCY_LIST.find(c => c.country === selected);
+                              if (found) {
+                                setRegCurrency(found.currency);
+                              }
+                            }}
+                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all appearance-none cursor-pointer"
+                          >
+                            {COUNTRY_CURRENCY_LIST.map(c => (
+                              <option key={c.country} value={c.country}>{c.country}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    <button 
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-14 mt-4 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-70"
+                    >
+                      {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('createAccountTitle', 'Create Account')} <ArrowRight className="w-5 h-5" /></>}
+                    </button>
+                  </form>
+
+                  <div className="mt-6 text-center animate-fade-in">
+                    <p className="text-slate-500 text-sm font-medium">
+                      {t('hasAccount', 'Already have an account?')}{' '}
+                      <button 
+                        onClick={() => {
+                          setError('');
+                          setSuccessMsg('');
+                          setView('login');
+                          setStep(1);
+                        }} 
+                        className="text-[#003399] font-bold hover:underline"
+                      >
+                        {t('signInInstead', 'Sign In Instead')}
+                      </button>
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-10 pt-6 border-t border-slate-100 text-center">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                Support: <span className="text-[#003399]">0800 BLUE CREST</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
