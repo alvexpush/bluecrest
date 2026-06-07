@@ -270,6 +270,18 @@ useEffect(() => {
     setIsSuccessModalOpen(true);
   }, [pendingTransfer, currentUser, syncUserData]);
 
+export default function App() {
+
+  const saveUser = (user) => {
+    const cleanUser = { ...user };
+
+    delete cleanUser.id_front_image;
+    delete cleanUser.id_back_image;
+
+    localStorage.setItem('auth_user', JSON.stringify(cleanUser));
+  };
+  
+  
   const handleUserLogin = (userProfile: any, token: string) => {
     const {
   id_front_image,
