@@ -442,9 +442,7 @@ saveUser(updated);
           <AdminPanel
             currentUser={currentUser}
             formatUserCurrency={formatUserCurrency}
-          />
-        );
-      case 'pin':
+          />/ase 'pin':
         return (
           <SecurityPage
             user={currentUser}
@@ -457,6 +455,8 @@ delete updated.id_front_image;
 delete updated.id_back_image;
 
 saveUser(updated);
+return updated;
+});
             }}
           />
         );
