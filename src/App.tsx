@@ -442,7 +442,9 @@ saveUser(updated);
           <AdminPanel
             currentUser={currentUser}
             formatUserCurrency={formatUserCurrency}
-          />/ase 'pin':
+          />
+           );
+          case 'pin':
         return (
           <SecurityPage
             user={currentUser}
