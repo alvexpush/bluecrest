@@ -270,7 +270,6 @@ useEffect(() => {
     setIsSuccessModalOpen(true);
   }, [pendingTransfer, currentUser, syncUserData]);
 
-export default function App() {
 
   const saveUser = (user) => {
     const cleanUser = { ...user };
