@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+*.db
+.env*
+!.env.example
+mysshkey
+mysshkey.pub
+database.txt
+database.txt.txt
+db.close())
+server.txt
