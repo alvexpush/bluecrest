@@ -25,6 +25,15 @@ import {
 import { USER_DATA, TRANSACTIONS, STOCKS, ACTIVITY_DATA } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
+
+type MarketSnapshot = {
+  targetCurrency: string;
+  usdRate: number;
+  bitcoinUsd: number;
+  bitcoinChange24h: number | null;
+  updatedAt: string;
+};
 
 const QUICK_ACTIONS = [
   { id: 'transfer', label: 'Transfer', icon: Send, color: 'text-indigo-500', bg: 'bg-indigo-50' },
@@ -47,6 +56,15 @@ export default function DashboardOverview({
   formatUserCurrency?: (amount: number) => string;
 }) {
   const activeUser = user || USER_DATA;
+  const [currentLoanAmount, setCurrentLoanAmount] = useState(0);
+  const preferredCurrency = (
+    activeUser.preferred_currency ||
+    activeUser.preferredCurrency ||
+    'USD'
+  ).toUpperCase();
+  const marketCurrency = preferredCurrency === 'USD' ? 'EUR' : preferredCurrency;
+  const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [marketLoading, setMarketLoading] = useState(true);
   const formatCurrency = formatUserCurrency || ((amt: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -54,6 +72,80 @@ export default function DashboardOverview({
       minimumFractionDigits: 2
     }).format(amt);
   });
+
+  useEffect(() => {
+    if (!activeUser?.id) return;
+    const token = localStorage.getItem('auth_token');
+
+    fetch(`/api/v1/loans/user/${activeUser.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(payload => {
+        const loans = Array.isArray(payload.data) ? payload.data : [];
+        const activeTotal = loans
+          .filter((loan: any) => loan.status === 'DISBURSED')
+          .reduce((sum: number, loan: any) => sum + Number(loan.requested_amount || 0), 0);
+        setCurrentLoanAmount(activeTotal);
+      })
+      .catch(() => setCurrentLoanAmount(0));
+  }, [activeUser?.id]);
+
+  useEffect(() => {
+    const cacheKey = `bluecrest_market_${marketCurrency}`;
+    const cached = localStorage.getItem(cacheKey);
+
+    if (cached) {
+      try {
+        setMarketSnapshot(JSON.parse(cached));
+      } catch {
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
+    const loadMarketSnapshot = () => {
+      fetch(`/api/v1/market?currency=${encodeURIComponent(marketCurrency)}`)
+        .then(response => response.ok ? response.json() : Promise.reject())
+        .then(payload => {
+          const snapshot = payload.data as MarketSnapshot;
+          setMarketSnapshot(snapshot);
+          localStorage.setItem(cacheKey, JSON.stringify(snapshot));
+        })
+        .catch(() => {
+          // Keep the last successful snapshot when a provider is temporarily unavailable.
+        })
+        .finally(() => setMarketLoading(false));
+    };
+
+    loadMarketSnapshot();
+    const refreshTimer = window.setInterval(loadMarketSnapshot, 5 * 60 * 1000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [marketCurrency]);
+
+  const forexLabel = preferredCurrency === 'USD'
+    ? `${marketCurrency} / USD`
+    : `USD / ${marketCurrency}`;
+  const forexValue = marketSnapshot
+    ? preferredCurrency === 'USD'
+      ? new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 4
+        }).format(1 / marketSnapshot.usdRate)
+      : new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: marketCurrency,
+          maximumFractionDigits: 4
+        }).format(marketSnapshot.usdRate)
+    : marketLoading ? 'Updating…' : 'Unavailable';
+  const bitcoinValue = marketSnapshot
+    ? new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+      }).format(marketSnapshot.bitcoinUsd)
+    : marketLoading ? 'Updating…' : 'Unavailable';
 
   return (
     <div className="space-y-8 pb-12">
@@ -70,12 +162,27 @@ export default function DashboardOverview({
           </div>
           <div className="flex flex-wrap gap-x-10 gap-y-6 mt-10 md:mt-16 relative z-10">
             <div>
-              <p className="text-[9px] md:text-[10px] text-blue-200/50 uppercase tracking-widest font-bold mb-1">Monthly Income</p>
-              <p className="text-base md:text-xl font-bold text-emerald-400">+ $12,450</p>
+              <p className="text-[9px] md:text-[10px] text-blue-200/50 uppercase tracking-widest font-bold mb-1">{forexLabel}</p>
+              <p className="text-base md:text-xl font-bold text-emerald-400">{forexValue}</p>
+              <p className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-blue-200/40">
+                {preferredCurrency === 'USD' ? `1 ${marketCurrency}` : '1 US dollar'}
+              </p>
             </div>
             <div>
-              <p className="text-[9px] md:text-[10px] text-blue-200/50 uppercase tracking-widest font-bold mb-1">Monthly Spending</p>
-              <p className="text-base md:text-xl font-bold text-rose-400">- $3,820</p>
+              <p className="text-[9px] md:text-[10px] text-blue-200/50 uppercase tracking-widest font-bold mb-1">Bitcoin / USD</p>
+              <p className="text-base md:text-xl font-bold text-amber-300">{bitcoinValue}</p>
+              <p className={cn(
+                "mt-1 text-[8px] font-semibold uppercase tracking-wider",
+                marketSnapshot?.bitcoinChange24h == null
+                  ? "text-blue-200/40"
+                  : marketSnapshot.bitcoinChange24h >= 0
+                    ? "text-emerald-300"
+                    : "text-rose-300"
+              )}>
+                {marketSnapshot?.bitcoinChange24h == null
+                  ? 'Live market price'
+                  : `${marketSnapshot.bitcoinChange24h >= 0 ? '+' : ''}${marketSnapshot.bitcoinChange24h.toFixed(2)}% today`}
+              </p>
             </div>
             <div className="hidden sm:block">
               <p className="text-[9px] md:text-[10px] text-blue-200/50 uppercase tracking-widest font-bold mb-1">Account Status</p>
@@ -84,49 +191,27 @@ export default function DashboardOverview({
           </div>
         </div>
         
-        {/* Visual Card */}
-        <div className="lg:w-96 w-full min-h-[240px] bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 border border-amber-500/25 rounded-[2.5rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl flex flex-col justify-between transition-all duration-300 hover:shadow-amber-500/5">
-          {/* Gold Gradient Glows */}
-          <div className="absolute -right-20 -top-20 w-64 h-64 bg-gradient-to-br from-amber-500/15 to-yellow-600/0 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-gradient-to-br from-slate-500/5 to-transparent rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_#d4af37_1px,_transparent_1px)] bg-[size:16px_16px]" />
-
-          <div className="relative z-10 flex justify-between items-center">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-300 bg-clip-text text-transparent">
-                BLUE CREST RESERVE
-              </span>
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                Premium Debit
-              </span>
-            </div>
-            <span className="italic font-black text-xl bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">VISA</span>
-          </div>
-
-          <div className="relative z-10 flex items-center gap-4 my-2">
-            {/* Detailed Luxury Gold Microchip */}
-            <div className="w-11 h-8 rounded-md bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-600 p-[1px] shadow-md relative overflow-hidden">
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_45%,rgba(0,0,0,0.25)_45%,rgba(0,0,0,0.25)_55%,transparent_55%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(0deg,transparent_45%,rgba(0,0,0,0.25)_45%,rgba(0,0,0,0.25)_55%,transparent_55%)]" />
-              <div className="w-full h-full rounded-[5px] border border-amber-300/30 bg-gradient-to-br from-yellow-350/50 to-amber-500/50" />
-            </div>
-            {/* Contactless payment icon */}
-            <div className="w-8 h-8 rounded-full border border-white/5 bg-white/5 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-amber-400/80 animate-pulse" />
+        {/* Loan position */}
+        <div className="lg:w-96 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+          <div className="relative overflow-hidden rounded-[2rem] bg-white border border-slate-100 p-6 shadow-sm">
+            <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-blue-50" />
+            <div className="relative">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Current Loan Amount</p>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{formatCurrency(currentLoanAmount)}</p>
+              <p className="mt-2 text-[10px] font-semibold text-slate-400">Total capital currently disbursed</p>
             </div>
           </div>
-          
-          <div className="relative z-10">
-            <p className="text-lg md:text-2xl tracking-[0.2em] mb-6 font-mono bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">4484 9527 2838 1412</p>
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-[9px] text-slate-400 uppercase tracking-widest mb-0.5 font-bold">Account Holder</p>
-                <p className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-200">{activeUser.first_name || activeUser.firstName || ''} {activeUser.last_name || activeUser.lastName || ''}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] text-slate-400 uppercase tracking-widest mb-0.5 font-bold">Validation</p>
-                <p className="text-xs md:text-sm font-bold text-slate-200">09/27</p>
-              </div>
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-xl shadow-emerald-900/10">
+            <div className="absolute -right-10 -bottom-12 w-36 h-36 rounded-full bg-white/10" />
+            <div className="relative">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-100">Eligible Loan Amount</p>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight">{formatCurrency(250000)}</p>
+              <button
+                onClick={() => onActionClick('loans')}
+                className="mt-3 text-[10px] font-bold uppercase tracking-widest text-white/90 hover:text-white"
+              >
+                Apply for financing →
+              </button>
             </div>
           </div>
         </div>

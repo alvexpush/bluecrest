@@ -22,6 +22,8 @@ import {
   FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import AdminCommunications from './AdminCommunications';
+import AdminSecurity from './AdminSecurity';
 
 interface AdminPanelProps {
   currentUser: any;
@@ -44,10 +46,11 @@ const ADMIN_COUNTRY_CURRENCY_LIST = [
 ];
 
 export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'users' | 'transfers' | 'loans' | 'create-txn'>('users');
+  const [activeSubTab, setActiveSubTab] = useState<'users' | 'transfers' | 'loans' | 'cards' | 'security' | 'create-txn' | 'communications'>('users');
   const [users, setUsers] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -120,6 +123,14 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         setLoans(data.data || data);
       }
 
+      const cardsRes = await fetch('/api/v1/cards', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (cardsRes.ok) {
+        const data = await cardsRes.json();
+        setCards(data.data || data);
+      }
+
       // 4. Fetch all transactions
       const txnsRes = await fetch('/api/v1/transactions', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -157,7 +168,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to update KYC.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to update KYC.');
       }
     } catch (e) {
       setResponseMsg('Server connection offline.');
@@ -180,7 +191,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to update transfer flow.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to update transfer flow.');
       }
     } catch (e) {
       setResponseMsg('Server connection offline.');
@@ -218,7 +229,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to issue transaction.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to issue transaction.');
       }
     } catch (e) {
       console.error(e);
@@ -261,7 +272,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         setAddDob('');
         fetchData();
       } else {
-        setResponseMsg(data.error || 'Failed to register member.');
+        setResponseMsg(data.error?.message || data.error || 'Failed to register member.');
       }
     } catch (e) {
       setResponseMsg('Server connection offline.');
@@ -314,7 +325,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to update user.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to update user.');
       }
     } catch (e) {
       setResponseMsg('Server error.');
@@ -339,7 +350,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to delete user.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to delete user.');
       }
     } catch (e) {
       setResponseMsg('Server error.');
@@ -363,7 +374,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to update loan.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to update loan.');
       }
     } catch (e) {
       setResponseMsg('Server connection offline.');
@@ -387,7 +398,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed assigning fee.');
+        setResponseMsg(err.error?.message || err.error || 'Failed assigning fee.');
       }
     } catch (e) {
       setResponseMsg('Server error.');
@@ -410,7 +421,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed confirming fee.');
+        setResponseMsg(err.error?.message || err.error || 'Failed confirming fee.');
       }
     } catch (e) {
       setResponseMsg('Server error.');
@@ -433,10 +444,38 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed to disburse loan.');
+        setResponseMsg(err.error?.message || err.error || 'Failed to disburse loan.');
       }
     } catch (e) {
       setResponseMsg('Connection failed.');
+    }
+  };
+
+  const handleCardAction = async (
+    cardId: string | number,
+    action: 'approve' | 'reject' | 'confirm-payment' | 'release'
+  ) => {
+    setResponseMsg('');
+    try {
+      const response = await fetch(`/api/v1/cards/${cardId}/${action}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({})
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || 'Card action failed');
+      setResponseMsg(
+        action === 'approve' ? 'Card application approved and fee assigned.' :
+        action === 'confirm-payment' ? 'Card payment confirmed.' :
+        action === 'release' ? 'Debit card generated and released.' :
+        'Card application rejected.'
+      );
+      fetchData();
+    } catch (requestError: any) {
+      setResponseMsg(requestError.message || 'Card action failed.');
     }
   };
 
@@ -457,7 +496,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         fetchData();
       } else {
         const err = await res.json();
-        setResponseMsg(err.error || 'Failed updating status.');
+        setResponseMsg(err.error?.message || err.error || 'Failed updating status.');
       }
     } catch (e) {
       setResponseMsg('Connection error.');
@@ -561,12 +600,15 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
       )}
 
       {/* Navigation Sub-tabs */}
-      <div className="flex gap-2 border-b border-slate-100 pb-3">
+      <div className="flex gap-2 border-b border-slate-100 pb-3 overflow-x-auto">
         {[
           { id: 'users', label: 'User Ledger', icon: Users },
           { id: 'transfers', label: 'Transfers & Wires', icon: Send },
           { id: 'loans', label: 'Capital Financing', icon: Landmark },
-          { id: 'create-txn', label: 'Issue Transaction', icon: PlusCircle }
+          { id: 'cards', label: 'Card Applications', icon: CreditCard },
+          { id: 'security', label: 'Authorization Codes', icon: Lock },
+          { id: 'create-txn', label: 'Issue Transaction', icon: PlusCircle },
+          { id: 'communications', label: 'Communications & Payouts', icon: Send }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -585,6 +627,14 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
       </div>
 
       {/* SUB-PAGES RENDERING */}
+      {activeSubTab === 'communications' && (
+        <AdminCommunications users={users} />
+      )}
+
+      {activeSubTab === 'security' && (
+        <AdminSecurity users={users} />
+      )}
+
       {activeSubTab === 'users' && (
         <div className="space-y-6">
           {/* Collapse/Expand Add User Form */}
@@ -798,9 +848,9 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                                 )}
                                 <span className={cn(
                                   "text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide",
-                                  u.transfer_pin ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-rose-50 text-rose-600 border border-rose-100"
+                                  (u.transfer_pin_set || u.transfer_pin) ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-rose-50 text-rose-600 border border-rose-100"
                                 )}>
-                                  {u.transfer_pin ? "PIN Set" : "No PIN"}
+                                  {(u.transfer_pin_set || u.transfer_pin) ? "PIN Set" : "No PIN"}
                                 </span>
                               </div>
                             </div>
@@ -843,6 +893,8 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                           >
                             <option value="PENDING">PENDING (Audit Required)</option>
                             <option value="COMPLETED">COMPLETED (Auto-Approve)</option>
+                            <option value="AUTHORIZATION_HOLD">AUTHORIZATION HOLD (Code Needed)</option>
+                            <option value="AUTHORIZATION_REQUIRED">AUTHORIZATION REQUIRED (Code Assigned)</option>
                             <option value="RESTRICTED">RESTRICTED (Blocked)</option>
                           </select>
                         </td>
@@ -991,6 +1043,137 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'cards' && (
+        <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-slate-50">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div>
+              <h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-[#003399]" />
+                Debit card applications
+              </h3>
+              <p className="mt-1 text-xs text-slate-400">Approve, confirm the arranged payment, then release the generated card.</p>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#003399]">
+              {cards.length} requests
+            </span>
+          </div>
+
+          {cards.length === 0 ? (
+            <div className="rounded-3xl border-2 border-dashed border-slate-100 py-16 text-center text-xs font-semibold text-slate-400">
+              No debit card applications yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="pb-3">Applicant</th>
+                    <th className="pb-3">Delivery</th>
+                    <th className="pb-3">Fee / Payment</th>
+                    <th className="pb-3">Status</th>
+                    <th className="pb-3 text-right">Controls</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {cards.map(card => (
+                    <tr key={card.id}>
+                      <td className="py-4">
+                        <p className="text-xs font-bold text-slate-800">{card.first_name} {card.last_name}</p>
+                        <p className="text-[10px] text-slate-400">{card.email}</p>
+                        <p className="mt-1 text-[9px] font-extrabold uppercase tracking-widest text-[#003399]">
+                          {card.card_type} · Up to ${Number(card.purchase_limit_max || 0).toLocaleString()}
+                        </p>
+                        {card.card_number && (
+                          <p className="mt-1 font-mono text-[10px] text-[#003399]">
+                            •••• {String(card.card_number).slice(-4)} · {card.expiry_date}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-4 max-w-[240px] text-xs font-medium text-slate-500">{card.delivery_address}</td>
+                      <td className="py-4">
+                        <p className="text-xs font-bold text-slate-800">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                            maximumFractionDigits: 0
+                          }).format(Number(card.issuance_fee || 0))}
+                        </p>
+                        <span className={cn(
+                          "mt-1 inline-flex rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest",
+                          card.payment_status === 'PAID' ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                        )}>
+                          {card.payment_status}
+                        </span>
+                      </td>
+                      <td className="py-4">
+                        <span className={cn(
+                          "rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest",
+                          card.status === 'RELEASED' ? "bg-emerald-50 text-emerald-600" :
+                          card.status === 'REJECTED' ? "bg-rose-50 text-rose-600" :
+                          card.status === 'PAYMENT_CONFIRMED' ? "bg-teal-50 text-teal-600" :
+                          card.status === 'REFERENCE_SUBMITTED' ? "bg-amber-50 text-amber-700" :
+                          "bg-blue-50 text-[#003399]"
+                        )}>
+                          {card.status.replaceAll('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-4 text-right">
+                        {card.status === 'PENDING' && (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleCardAction(card.id, 'approve')}
+                              className="rounded-lg bg-[#003399] px-3 py-1.5 text-[10px] font-bold text-white"
+                            >
+                              Approve
+                            </button>
+                            <button onClick={() => handleCardAction(card.id, 'reject')} className="rounded-lg bg-rose-500 px-3 py-1.5 text-[10px] font-bold text-white">Reject</button>
+                          </div>
+                        )}
+                        {card.status === 'AWAITING_PAYMENT' && (
+                          <span className="text-[10px] font-bold text-amber-600">Waiting for Txn Reference</span>
+                        )}
+                        {card.status === 'REFERENCE_SUBMITTED' && (
+                          <div className="flex flex-col items-end gap-2">
+                            {card.txn_reference_image && (
+                              <a
+                                href={card.txn_reference_image}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block"
+                              >
+                                <img
+                                  src={card.txn_reference_image}
+                                  alt="Submitted transaction reference"
+                                  className="h-16 w-24 rounded-lg border border-slate-200 object-cover"
+                                />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleCardAction(card.id, 'confirm-payment')}
+                              className="rounded-xl bg-teal-600 px-3 py-2 text-[10px] font-bold text-white"
+                            >
+                              Verify & Final Approve
+                            </button>
+                          </div>
+                        )}
+                        {card.status === 'PAYMENT_CONFIRMED' && (
+                          <button onClick={() => handleCardAction(card.id, 'release')} className="rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-bold text-white">
+                            Release & Generate Card
+                          </button>
+                        )}
+                        {card.status === 'RELEASED' && (
+                          <span className="text-[10px] font-bold text-emerald-600">Released</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

@@ -71,7 +71,7 @@ export default function SandboxPanel({ user, onRefreshUser, loans = [], onRefres
         if (onRefreshLoans) onRefreshLoans();
         setTimeout(() => loadPanelLoans(), 300);
       } else {
-        setResponseMsg(data.error || 'Failed updating sandbox.');
+        setResponseMsg(data.error?.message || data.error || 'Failed updating sandbox.');
       }
     } catch (err) {
       setResponseMsg('Sandbox connection offline.');

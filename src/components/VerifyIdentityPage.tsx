@@ -106,7 +106,7 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
       const data = await response.json();
 
       if (!response.ok) {
-        setErrorMsg(data.error || 'Identity verification submission failed.');
+        setErrorMsg(data.error?.message || data.error || 'Identity verification submission failed.');
         return;
       }
 

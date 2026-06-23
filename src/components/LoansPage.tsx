@@ -114,7 +114,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
       const data = await response.json();
 
       if (!response.ok) {
-        setErrorMsg(data.error || 'Failed to submit loan request.');
+        setErrorMsg(data.error?.message || data.error || 'Failed to submit loan request.');
         return;
       }
 

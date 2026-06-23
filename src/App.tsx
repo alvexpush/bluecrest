@@ -10,6 +10,7 @@ import DashboardOverview from './components/DashboardOverview';
 import TransferPage from './components/TransferPage';
 import CardsPage from './components/CardsPage';
 import NotificationsPage from './components/NotificationsPage';
+import TransactionHistory from './components/TransactionHistory';
 import SummaryPage from './components/SummaryPage';
 import StocksPage from './components/StocksPage';
 import LoginPage from './components/LoginPage';
@@ -21,13 +22,20 @@ import SandboxPanel from './components/SandboxPanel';
 import AdminPanel from './components/AdminPanel';
 import ProfilePage from './components/ProfilePage';
 import { LanguageCode } from './lib/translations';
-import { RestrictedModal, SelectTransferTypeModal, TransferSuccessModal, TransferCodeModal } from './components/Modals';
+import { RestrictedModal, SelectTransferTypeModal, TransferSuccessModal, TransferCodeModal, TransferVerificationModal } from './components/Modals';
 import { motion, AnimatePresence } from 'motion/react';
-import { USER_DATA, TRANSACTIONS, PROFILE_IMAGE } from './constants';
+import { USER_DATA, TRANSACTIONS } from './constants';
 import { cn } from './lib/utils';
-import { FileText, User as UserIcon, CreditCard, Bell, History, Shield, Key } from 'lucide-react';
 
 export default function App() {
+const clearStoredSession = useCallback(() => {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  localStorage.removeItem('bank_transactions');
+  localStorage.removeItem('bank_balance');
+  localStorage.removeItem('bank_transfer_count');
+}, []);
+
 useEffect(() => {
   try {
     const saved = localStorage.getItem('auth_user');
@@ -74,6 +82,8 @@ useEffect(() => {
   const [isSelectTypeModalOpen, setIsSelectTypeModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isTransferCodeModalOpen, setIsTransferCodeModalOpen] = useState(false);
+  const [isTransferVerificationOpen, setIsTransferVerificationOpen] = useState(false);
+  const [transferVerificationToken, setTransferVerificationToken] = useState('');
 
   const [transactions, setTransactions] = useState<any[]>([]);
 
@@ -140,6 +150,15 @@ useEffect(() => {
       }
     })
       .then(res => {
+        if (res.status === 401) {
+          clearStoredSession();
+          setIsLoggedIn(false);
+          setCurrentUser(USER_DATA);
+          setBalance(USER_DATA.balance);
+          setTransactions([]);
+          setTransferCount(0);
+          throw new Error("Session does not belong to the active local database");
+        }
         if (!res.ok) throw new Error("Database fetch error");
         return res.json();
       })
@@ -155,7 +174,7 @@ useEffect(() => {
               firstName: data.first_name,
               lastName: data.last_name,
               preferredCurrency: data.preferred_currency,
-              transferPin: data.transfer_pin,
+              transferPin: data.transfer_pin_set ? 'SET' : null,
               kycStatus: data.kyc_status,
               accountNumber: data.account_number,
               branchCode: data.branch_code
@@ -185,6 +204,7 @@ useEffect(() => {
           if (Array.isArray(data)) {
             const mappedTxns = data.map((t: any) => ({
               id: `TXN-${t.id}`,
+              reference: t.reference,
               name: t.description || 'Fund Transfer',
               date: t.created_at
                 ? t.created_at.split(' ')[0]
@@ -211,7 +231,7 @@ useEffect(() => {
           console.warn("Could not sync transactions from custom server:", err);
         });
     }
-  }, [currentUser?.email, currentUser?.id]);
+  }, [currentUser?.email, currentUser?.id, clearStoredSession]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -241,12 +261,13 @@ useEffect(() => {
         amount: pendingTransfer.amount,
         description: pendingTransfer.description,
         pin: pin
+        ,verification_token: transferVerificationToken
       })
     });
 
     const resData = await response.json();
     if (!response.ok) {
-      const errMsg = resData.error || 'Failed to authorize transfer.';
+      const errMsg = resData?.error?.message || resData?.error || 'Failed to authorize transfer.';
       if (errMsg.toLowerCase().includes('restrict') || errMsg.toLowerCase().includes('suspended')) {
         setIsTransferCodeModalOpen(false);
         setIsRestrictedModalOpen(true);
@@ -268,7 +289,7 @@ useEffect(() => {
 
     setIsTransferCodeModalOpen(false);
     setIsSuccessModalOpen(true);
-  }, [pendingTransfer, currentUser, syncUserData]);
+  }, [pendingTransfer, currentUser, syncUserData, transferVerificationToken]);
 
 
   const saveUser = (user) => {
@@ -293,9 +314,9 @@ const mappedUser = {
   firstName: cleanUserProfile.first_name || cleanUserProfile.firstName,
   lastName: cleanUserProfile.last_name || cleanUserProfile.lastName,
   preferredCurrency: cleanUserProfile.preferred_currency || cleanUserProfile.preferredCurrency,
-  transferPin: cleanUserProfile.transfer_pin !== undefined
-    ? cleanUserProfile.transfer_pin
-    : cleanUserProfile.transferPin,
+  transferPin: cleanUserProfile.transfer_pin_set
+    ? 'SET'
+    : (cleanUserProfile.transferPin || null),
   kycStatus: cleanUserProfile.kyc_status || cleanUserProfile.kycStatus,
   accountNumber: cleanUserProfile.account_number || cleanUserProfile.accountNumber,
   branchCode: cleanUserProfile.branch_code || cleanUserProfile.branchCode
@@ -320,11 +341,7 @@ setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('bank_transactions');
-    localStorage.removeItem('bank_balance');
-    localStorage.removeItem('bank_transfer_count');
+    clearStoredSession();
     setIsLoggedIn(false);
     setCurrentUser(USER_DATA);
     setBalance(USER_DATA.balance);
@@ -348,6 +365,7 @@ setIsLoggedIn(true);
       'account': 'details',
       'details': 'details',
       'stocks': 'stocks',
+      'loans': 'loans',
     };
 
     if (id === 'transfer') {
@@ -390,7 +408,8 @@ setIsLoggedIn(true);
             currencySymbol={getCurrencySymbol()}
             formatUserCurrency={formatUserCurrency}
             onTransferSubmit={(data: any) => {
-              if (currentUser.transfer_flow === 'RESTRICTED' || currentUser.transferFlow === 'RESTRICTED') {
+              const transferFlow = currentUser.transfer_flow || currentUser.transferFlow;
+              if (transferFlow === 'RESTRICTED' || transferFlow === 'AUTHORIZATION_HOLD') {
                 setIsRestrictedModalOpen(true);
               } else {
                 // Store details for verification
@@ -404,8 +423,12 @@ setIsLoggedIn(true);
                   transferType: data.transferType
                 });
 
-                // Open transfer authorization pin code modal
-                setIsTransferCodeModalOpen(true);
+                if (transferFlow === 'AUTHORIZATION_REQUIRED') {
+                  setIsTransferVerificationOpen(true);
+                } else {
+                  setTransferVerificationToken('');
+                  setIsTransferCodeModalOpen(true);
+                }
               }
             }}
           />
@@ -470,70 +493,14 @@ return updated;
             lang={lang}
           />
         );
+      case 'notifications':
+        return <NotificationsPage onNavigate={setActiveTab} />;
       case 'history':
-        return (
-          <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Transaction History</h2>
-              <button className="w-full sm:w-auto px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10">
-                Download Statement
-              </button>
-            </div>
-            <div className="overflow-x-auto -mx-6 md:mx-0">
-              <div className="min-w-[800px] px-6 md:px-0">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left border-b border-slate-100 italic">
-                      <th className="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-2">Transaction ID</th>
-                      <th className="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description</th>
-                      <th className="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</th>
-                      <th className="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                      <th className="pb-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right pr-2">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {transactions.map((trx) => (
-                      <tr key={trx.id} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="py-5 pl-2">
-                          <p className="text-[11px] font-mono font-bold text-slate-400">#{trx.id}</p>
-                        </td>
-                        <td className="py-5">
-                          <div className="flex flex-col">
-                            <p className="text-sm font-bold text-slate-800 group-hover:text-brand-primary transition-colors">{trx.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{trx.category}</p>
-                          </div>
-                        </td>
-                        <td className="py-5">
-                          <p className="text-[11px] font-bold text-slate-500">{trx.date}</p>
-                        </td>
-                        <td className="py-5">
-                          <span className={cn(
-                            "px-3 py-1 text-[9px] font-bold rounded-full uppercase tracking-widest",
-                            trx.status === 'Completed' ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
-                          )}>
-                            {trx.status}
-                          </span>
-                        </td>
-                        <td className="py-5 text-right pr-2">
-                          <p className={cn(
-                            "text-sm font-bold",
-                            trx.type === 'credit' ? "text-emerald-500" : "text-rose-500"
-                          )}>
-                            {trx.type === 'credit' ? '+' : '-'}${trx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
+        return <TransactionHistory transactions={transactions} formatCurrency={formatUserCurrency} />;
       case 'summary':
         return <SummaryPage user={currentUser} balance={balance} />;
       case 'atm':
-        return <CardsPage user={currentUser} />;
+        return <CardsPage user={currentUser} formatCurrency={formatUserCurrency} />;
       case 'stocks':
         return <StocksPage />;
       default:
@@ -565,7 +532,7 @@ return updated;
       />
 
       <main className="flex-1 lg:ml-64 flex flex-col min-h-screen">
-        <Header onMenuClick={() => setIsSidebarOpen(true)} user={currentUser} />
+        <Header onMenuClick={() => setIsSidebarOpen(true)} onNotificationsClick={() => setActiveTab('notifications')} user={currentUser} />
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
@@ -585,6 +552,7 @@ return updated;
       <RestrictedModal
         isOpen={isRestrictedModalOpen}
         onClose={() => setIsRestrictedModalOpen(false)}
+        authorizationHold={(currentUser.transfer_flow || currentUser.transferFlow) === 'AUTHORIZATION_HOLD'}
       />
 
       <SelectTransferTypeModal
@@ -613,6 +581,19 @@ return updated;
         amount={pendingTransfer?.amount || 0}
         userPin={currentUser.transferPin}
         formatUserCurrency={formatUserCurrency}
+      />
+
+      <TransferVerificationModal
+        isOpen={isTransferVerificationOpen}
+        onClose={() => {
+          setIsTransferVerificationOpen(false);
+          setPendingTransfer(null);
+        }}
+        onVerified={(token) => {
+          setTransferVerificationToken(token);
+          setIsTransferVerificationOpen(false);
+          setIsTransferCodeModalOpen(true);
+        }}
       />
 
       {(currentUser.role === 'ADMIN' || currentUser.role === 'Admin') && (

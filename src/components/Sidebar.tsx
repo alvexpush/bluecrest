@@ -16,7 +16,8 @@ import {
   X,
   RotateCcw,
   ShieldCheck,
-  Landmark
+  Landmark,
+  Bell
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getTranslation, LanguageCode } from '../lib/translations';
@@ -44,8 +45,10 @@ const MENU_ITEMS = [
     { id: 'history', label: 'Transfer History', icon: History },
   ]},
   { section: 'CREDITS & SECURE', items: [
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'kyc', label: 'Verify Identity (KYC)', icon: ShieldCheck },
     { id: 'loans', label: 'Apply For Loan', icon: Landmark },
+    { id: 'atm', label: 'Apply For Debit Card', icon: CreditCard },
     { id: 'pin', label: 'Security PIN', icon: Shield },
   ]}
 ];
@@ -62,6 +65,7 @@ const labelKeyMap: Record<string, string> = {
   kyc: 'verifyIdentity',
   loans: 'applyLoan',
   pin: 'securityPin',
+  notifications: 'notifications',
   admin: 'adminBackoffice'
 };
 

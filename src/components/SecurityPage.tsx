@@ -51,7 +51,7 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
       const data = await response.json();
 
       if (!response.ok) {
-        setErrorMsg(data.error || 'Failed to update Transfer PIN.');
+        setErrorMsg(data.error?.message || data.error || 'Failed to update Transfer PIN.');
         return;
       }
 

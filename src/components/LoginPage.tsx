@@ -176,15 +176,19 @@ const COUNTRY_CURRENCY_LIST = [
 ];
 
 export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPageProps) {
-  const [view, setView] = useState<'login' | 'register'>('login');
+  const [view, setView] = useState<'login' | 'register' | 'forgot'>('login');
   
   // Login State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('941085');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [step, setStep] = useState(1);
   const [pendingLoginUser, setPendingLoginUser] = useState<any>(null);
   const [pendingToken, setPendingToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetRequested, setResetRequested] = useState(false);
+  const [developmentCode, setDevelopmentCode] = useState('');
 
   // Registration State
   const [regFirstName, setRegFirstName] = useState('');
@@ -233,19 +237,18 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
         setIsLoading(false);
 
         if (!response.ok) {
-          setError(data.error || 'Invalid credentials or login failure.');
+          setError(data.error?.message || data.error || 'Invalid credentials or login failure.');
           return;
         }
 
-        // Successfully logged in
-        if (data && data.data) {
-          setPendingLoginUser(data.data.user);
-          setPendingToken(data.data.token);
+        const result = data?.data || data;
+        if (result.user?.force_password_change) {
+          setPendingLoginUser(result.user);
+          setPendingToken(result.token);
+          setStep(3);
         } else {
-          setPendingLoginUser(data.user);
-          setPendingToken(data.token);
+          onLogin(result.user, result.token);
         }
-        setStep(3); // Transition to Secure PIN code
       } catch (err: any) {
         setIsLoading(false);
         setError('Server authentication connection error.');
@@ -253,14 +256,56 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
     }
   };
 
-  const verifyConfirmPassword = (e: React.FormEvent) => {
+  const verifyConfirmPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (newPassword.length < 8) return setError('Password must be at least 8 characters.');
+    if (newPassword !== confirmPassword) return setError('Passwords do not match.');
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pendingToken}` },
+        body: JSON.stringify({ new_password: newPassword, force_change_completion: true })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error?.message || 'Could not change password');
+      setPendingLoginUser((user: any) => ({ ...user, force_password_change: 0 }));
+      onLogin({ ...pendingLoginUser, force_password_change: 0 }, pendingToken);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setIsLoading(false);
-      onLogin(pendingLoginUser, pendingToken);
-    }, 1000);
+    }
+  };
+
+  const requestReset = async (e: React.FormEvent) => {
+    e.preventDefault(); setIsLoading(true); setError('');
+    try {
+      const response = await fetch('/api/v1/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error?.message || 'Could not request reset');
+      setResetRequested(true);
+      setDevelopmentCode(data?.data?.development_code || '');
+      setSuccessMsg(data?.data?.message || 'Reset code sent.');
+    } catch (err: any) { setError(err.message); } finally { setIsLoading(false); }
+  };
+
+  const completeReset = async (e: React.FormEvent) => {
+    e.preventDefault(); setIsLoading(true); setError('');
+    if (newPassword !== confirmPassword) { setIsLoading(false); return setError('Passwords do not match.'); }
+    try {
+      const response = await fetch('/api/v1/auth/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: resetCode, new_password: newPassword })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error?.message || 'Could not reset password');
+      setView('login'); setStep(2); setResetRequested(false); setNewPassword(''); setConfirmPassword('');
+      setSuccessMsg('Password updated. You can log in immediately.');
+    } catch (err: any) { setError(err.message); } finally { setIsLoading(false); }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -268,7 +313,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
     setError('');
     setSuccessMsg('');
 
-    if (!regEmail || !regPassword || !regFirstName || !regLastName || !regUsername) {
+    if (!regEmail || !regPassword || !regFirstName || !regLastName || !regUsername || !regPhone) {
       setError('Please fill in all required setup details.');
       return;
     }
@@ -296,7 +341,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
       setIsLoading(false);
 
       if (!response.ok) {
-        setError(data.error || 'Registration failed.');
+        setError(data.error?.message || data.error || 'Registration failed.');
         return;
       }
 
@@ -356,12 +401,12 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-                {view === 'login' ? t('welcome', 'Welcome Back') : t('createAccountTitle', 'Create Account')}
+                {view === 'login' ? t('welcome', 'Welcome Back') : view === 'forgot' ? 'Reset Password' : t('createAccountTitle', 'Create Account')}
               </h1>
               <p className="text-blue-100/80 text-base mb-10">
-                {view === 'login' 
+                {view === 'login'
                   ? t('welcomeDesc', 'Access your premier financial portal securely.') 
-                  : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
+                  : view === 'forgot' ? 'Recover access using a short-lived email verification code.' : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
               </p>
             </div>
 
@@ -371,8 +416,8 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                   <Shield className="w-5 h-5 text-blue-200" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">Regulatory Compliance</p>
-                  <p className="text-blue-200/60 text-xs">FDIC insured up to $250,000</p>
+                  <p className="font-semibold text-sm">Security & Compliance</p>
+                  <p className="text-blue-200/60 text-xs">Layered account and transfer controls</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -481,6 +526,8 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                       >
                         {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('verifyAccount', 'Verify Account')} <ArrowRight className="w-5 h-5" /></>}
                       </button>
+                      <button type="button" onClick={() => { setView('forgot'); setError(''); setSuccessMsg(''); }}
+                        className="w-full text-xs font-bold text-[#003399] text-center">Forgot Password?</button>
                       <button type="button" onClick={() => setStep(1)} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-[#003399] text-center block">{t('orUseAnotherEmail', 'Or use another email')}</button>
                     </form>
                   )}
@@ -489,18 +536,28 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                     <form onSubmit={verifyConfirmPassword} className="space-y-6">
                       <div className="space-y-2">
                         <div className="text-center md:text-left">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">MFA Security Clearance</label>
-                          <span className="text-slate-400 text-xs font-medium">Enter the 2FA confirmation code sent to your device</span>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Password change required</label>
+                          <span className="text-slate-400 text-xs font-medium">Create a new password before entering your account.</span>
                         </div>
                         <div className="relative mt-2">
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                           <input 
-                            type="text" 
-                            maxLength={6}
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="New password"
+                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div className="relative mt-3">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                          <input
+                            type="password"
                             value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, ''))}
-                            placeholder="941085"
-                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-bold tracking-widest focus:bg-white focus:border-blue-200 outline-none transition-all text-slate-800"
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Confirm new password"
+                            className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
                             required
                           />
                         </div>
@@ -511,7 +568,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                         disabled={isLoading}
                         className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-70"
                       >
-                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Approve & Enter Portal <ArrowRight className="w-5 h-5" /></>}
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Change Password & Continue <ArrowRight className="w-5 h-5" /></>}
                       </button>
                     </form>
                   )}
@@ -531,6 +588,16 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                       </button>
                     </p>
                   </div>
+                </motion.div>
+              ) : view === 'forgot' ? (
+                <motion.div key="forgot-view" initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} className="max-w-md mx-auto w-full">
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Forgot Password?</h2>
+                  <p className="text-sm text-slate-500 mb-6">Enter your registered email. We’ll send a reset code that expires in 15 minutes.</p>
+                  {successMsg && <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold">{successMsg}{developmentCode && <span className="block mt-1">Development code: {developmentCode}</span>}</div>}
+                  {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold">{error}</div>}
+                  {!resetRequested ? <form onSubmit={requestReset} className="space-y-4"><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="field-control" placeholder="Registered email" required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Sending…' : 'Send Reset Code'}</button></form>
+                  : <form onSubmit={completeReset} className="space-y-4"><input value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))} className="field-control" placeholder="6-digit reset code" required /><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder="New password" required /><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder="Confirm new password" required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Updating…' : 'Reset Password'}</button></form>}
+                  <button onClick={() => { setView('login'); setResetRequested(false); setError(''); }} className="w-full mt-5 text-xs font-bold text-slate-400">Back to sign in</button>
                 </motion.div>
               ) : (
                 <motion.div 
@@ -630,6 +697,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             onChange={(e) => setRegPhone(e.target.value)}
                             placeholder="+1 (555) 019-3820"
                             className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                            required
                           />
                         </div>
                       </div>

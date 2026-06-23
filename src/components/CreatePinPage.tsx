@@ -43,7 +43,7 @@ export default function CreatePinPage({ userEmail, onPinCreated }: CreatePinPage
       setLoading(false);
 
       if (!response.ok) {
-        setError(data.error || 'Failed to configure Transfer PIN.');
+        setError(data.error?.message || data.error || 'Failed to configure Transfer PIN.');
         return;
       }
 

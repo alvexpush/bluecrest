@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, Mail, Phone, Calendar, MapPin, Briefcase, Camera, Check, ShieldCheck, Heart, Globe, DollarSign } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Briefcase, Camera, Check, ShieldCheck, Heart, Globe, DollarSign, Lock } from 'lucide-react';
 import { getTranslation, LanguageCode } from '../lib/translations';
 
 interface ProfilePageProps {
@@ -18,6 +18,7 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
   const [firstName, setFirstName] = useState(currentUser.first_name || currentUser.firstName || '');
   const [lastName, setLastName] = useState(currentUser.last_name || currentUser.lastName || '');
   const [phone, setPhone] = useState(currentUser.phone || '');
+  const [email, setEmail] = useState(currentUser.email || '');
   const [dob, setDob] = useState(currentUser.date_of_birth || currentUser.dob || '');
   const [gender, setGender] = useState(currentUser.gender || '');
   const [state, setState] = useState(currentUser.state || '');
@@ -27,6 +28,9 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
   const [address, setAddress] = useState(currentUser.address || '');
   const [preferredCurrency, setPreferredCurrency] = useState(currentUser.preferred_currency || currentUser.preferredCurrency || 'USD');
   const [profileImage, setProfileImage] = useState(currentUser.profile_image || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = (key: string, fb: string = "") => getTranslation(lang, key, fb);
@@ -92,6 +96,7 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
           first_name: firstName,
           last_name: lastName,
           phone,
+          email,
           date_of_birth: dob,
           gender,
           state,
@@ -110,12 +115,29 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
         onProfileUpdated();
       } else {
         const data = await res.json();
-        setErrorMsg(data.error || 'Failed to update profile.');
+        setErrorMsg(data.error?.message || data.error || 'Failed to update profile.');
       }
     } catch (err) {
       setIsLoading(false);
       setErrorMsg('Network error saving profile changes.');
     }
+  };
+
+  const handlePasswordChange = async (event: React.FormEvent) => {
+    event.preventDefault(); setIsLoading(true); setErrorMsg(''); setSuccessMsg('');
+    if (newPassword !== confirmPassword) { setIsLoading(false); return setErrorMsg('Passwords do not match.'); }
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error?.message || 'Could not change password');
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      setSuccessMsg('Password changed successfully.');
+    } catch (error: any) { setErrorMsg(error.message); } finally { setIsLoading(false); }
   };
 
   const initials = ((firstName?.charAt(0) || '') + (lastName?.charAt(0) || '')).toUpperCase() || 'U';
@@ -229,6 +251,15 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
                     className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
                     required
                   />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    className="w-full h-12 bg-slate-50 border border-slate-100 rounded-xl pl-11 pr-4 text-xs font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all" required />
                 </div>
               </div>
 
@@ -427,6 +458,16 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
           </div>
         )}
       </div>
+
+      <form onSubmit={handlePasswordChange} className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-slate-50 space-y-5">
+        <div><h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-[#003399]" /> Change password</h3><p className="text-xs text-slate-400 mt-1">Use at least eight characters and keep this password unique.</p></div>
+        <div className="grid md:grid-cols-3 gap-3">
+          <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="field-control" placeholder="Current password" required />
+          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder="New password" minLength={8} required />
+          <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder="Confirm new password" minLength={8} required />
+        </div>
+        <button disabled={isLoading} className="px-6 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold">{isLoading ? 'Updating…' : 'Update password'}</button>
+      </form>
     </div>
   );
 }

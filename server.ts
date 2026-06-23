@@ -1,60 +1,44 @@
 console.log("SERVER BOOTING");
 
+import "dotenv/config";
 import express from "express";
 import path from "path";
+import http from "http";
 import https from "https";
 
 const app = express();
 
 const BACKEND_URL =
   process.env.BACKEND_URL ||
-  "https://bluecrestpremium-production.up.railway.app";
+  "http://127.0.0.1:4000";
 
-console.log("REGISTERING API PROXY");
+console.log(`REGISTERING API PROXY -> ${BACKEND_URL}`);
 
 app.use("/api", (req, res) => {
-  console.log("=================================");
-  console.log("BACKEND_URL =", BACKEND_URL);
-  console.log("METHOD =", req.method);
-  console.log("REQ URL =", req.url);
-  console.log("TARGET =", `${BACKEND_URL}/api${req.url}`);
-  console.log("HEADERS =", req.headers);
-  console.log("=================================");
-
   const backend = new URL(BACKEND_URL);
+  const transport = backend.protocol === "http:" ? http : https;
 
   const options = {
-  hostname: backend.hostname,
-  port: 443,
-  path: `/api${req.url}`,
-  method: req.method,
-  headers: {
-    "content-type":
-      req.headers["content-type"] || "application/json",
-
-    "accept":
-      req.headers["accept"] || "*/*",
-
-    "authorization":
-      req.headers["authorization"] || ""
+    hostname: backend.hostname,
+    port: backend.port || (backend.protocol === "http:" ? 80 : 443),
+    path: `/api${req.url}`,
+    method: req.method,
+    headers: {
+      "content-type":
+        req.headers["content-type"] || "application/json",
+      ...(req.headers["content-length"]
+        ? { "content-length": req.headers["content-length"] }
+        : {}),
+      "accept":
+        req.headers["accept"] || "*/*",
+      "authorization":
+        req.headers["authorization"] || ""
+    }
   }
-};
 
-  console.log("OPTIONS =", options);
-
-  const proxyReq = https.request(
+  const proxyReq = transport.request(
     options,
     (proxyRes) => {
-      console.log(
-        "BACKEND STATUS =",
-        proxyRes.statusCode
-      );
-
-      console.log(
-        "BACKEND RESPONSE HEADERS =",
-        proxyRes.headers
-      );
-
       res.writeHead(
         proxyRes.statusCode || 200,
         proxyRes.headers

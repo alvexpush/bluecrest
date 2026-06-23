@@ -4,5 +4,14 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.db
 .env*
 !.env.example
+mysshkey
+mysshkey.pub
+alvexpush_railway_key
+alvexpush_railway_key.pub
+database.txt
+database.txt.txt
+db.close())
+server.txt

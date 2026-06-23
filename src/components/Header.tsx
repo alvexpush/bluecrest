@@ -1,12 +1,13 @@
-import { Search, Bell, Maximize2, ChevronDown, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { USER_DATA } from '@/src/constants';
 
 interface HeaderProps {
   onMenuClick?: () => void;
+  onNotificationsClick?: () => void;
   user?: any;
 }
 
-export default function Header({ onMenuClick, user }: HeaderProps) {
+export default function Header({ onMenuClick, onNotificationsClick, user }: HeaderProps) {
   const activeUser = user || USER_DATA;
   return (
     <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30">
@@ -21,14 +22,14 @@ export default function Header({ onMenuClick, user }: HeaderProps) {
         <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
         <span className="text-slate-300 hidden sm:block">|</span>
         <span className="text-slate-500 text-sm hidden sm:block font-medium">
-          Welcome back, {activeUser.surname} {activeUser.lastName}
+          Welcome back, {activeUser.firstName || activeUser.first_name || activeUser.surname} {activeUser.lastName || activeUser.last_name}
         </span>
       </div>
 
       <div className="flex items-center space-x-6">
-        <div className="relative group hidden md:block">
-          <Search className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors cursor-pointer" />
-        </div>
+        <button onClick={onNotificationsClick} className="relative group p-2 rounded-xl hover:bg-slate-50" aria-label="Open notifications">
+          <Bell className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+        </button>
         
         <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
         
@@ -43,7 +44,7 @@ export default function Header({ onMenuClick, user }: HeaderProps) {
           </div>
           
           <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 text-[#003399] font-bold text-xs flex items-center justify-center shadow-sm select-none">
-            {((activeUser.surname?.charAt(0) || '') + (activeUser.lastName?.charAt(0) || '')).toUpperCase() || 'U'}
+            {(((activeUser.firstName || activeUser.first_name || activeUser.surname || '').charAt(0)) + ((activeUser.lastName || activeUser.last_name || '').charAt(0))).toUpperCase() || 'U'}
           </div>
         </div>
       </div>
