@@ -5,12 +5,49 @@ import express from "express";
 import path from "path";
 import http from "http";
 import https from "https";
+import { spawn } from "child_process";
 
 const app = express();
 
+const SHOULD_START_INTERNAL_BACKEND =
+  !process.env.BACKEND_URL ||
+  process.env.BACKEND_URL === "http://127.0.0.1:4000" ||
+  process.env.BACKEND_URL === "http://localhost:4000";
+
+const INTERNAL_BACKEND_PORT =
+  process.env.BACKEND_PORT || "4000";
+
+let backendProcess: ReturnType<typeof spawn> | null = null;
+
+if (SHOULD_START_INTERNAL_BACKEND) {
+  console.log(
+    `STARTING INTERNAL API ON 127.0.0.1:${INTERNAL_BACKEND_PORT}`
+  );
+
+  backendProcess = spawn(
+    process.execPath,
+    ["server.js"],
+    {
+      cwd: path.join(process.cwd(), "bluecrestback"),
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PORT: INTERNAL_BACKEND_PORT,
+        NODE_ENV: process.env.NODE_ENV || "production"
+      }
+    }
+  );
+
+  backendProcess.on("exit", (code, signal) => {
+    console.error(
+      `Internal API exited with code ${code ?? "null"} and signal ${signal ?? "null"}`
+    );
+  });
+}
+
 const BACKEND_URL =
   process.env.BACKEND_URL ||
-  "http://127.0.0.1:4000";
+  `http://127.0.0.1:${INTERNAL_BACKEND_PORT}`;
 
 console.log(`REGISTERING API PROXY -> ${BACKEND_URL}`);
 
@@ -33,7 +70,8 @@ app.use("/api", (req, res) => {
         req.headers["accept"] || "*/*",
       "authorization":
         req.headers["authorization"] || ""
-    }
+    },
+    timeout: Number(process.env.API_PROXY_TIMEOUT_MS || 30000)
   }
 
   const proxyReq = transport.request(
@@ -49,6 +87,11 @@ app.use("/api", (req, res) => {
       });
     }
   );
+
+  proxyReq.on("timeout", () => {
+    console.error(`API proxy timed out: ${req.method} /api${req.url}`);
+    proxyReq.destroy(new Error("API proxy timed out"));
+  });
 
   proxyReq.on("error", (err: any) => {
     console.error("========== PROXY ERROR ==========");
@@ -74,6 +117,16 @@ app.use("/api", (req, res) => {
   req.pipe(proxyReq, {
     end: true
   });
+});
+
+process.on("SIGTERM", () => {
+  backendProcess?.kill("SIGTERM");
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  backendProcess?.kill("SIGINT");
+  process.exit(0);
 });
 
 const distPath = path.join(
