@@ -124,6 +124,13 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   // KYC inspection modal state
   const [inspectKycUser, setInspectKycUser] = useState<any | null>(null);
 
+  // Per-user transaction inspection state
+  const [transactionUser, setTransactionUser] = useState<any | null>(null);
+  const [userTransactions, setUserTransactions] = useState<any[]>([]);
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState('ALL');
+  const [isLoadingUserTransactions, setIsLoadingUserTransactions] = useState(false);
+  const [userTransactionsError, setUserTransactionsError] = useState('');
+
   const formatCurrency = formatUserCurrency || ((amt: number) => `$${amt.toLocaleString()}`);
   const token = localStorage.getItem('auth_token');
 
@@ -185,6 +192,31 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleViewUserTransactions = async (user: any) => {
+    setTransactionUser(user);
+    setUserTransactions([]);
+    setTransactionStatusFilter('ALL');
+    setUserTransactionsError('');
+    setIsLoadingUserTransactions(true);
+
+    try {
+      const res = await fetch(`/api/v1/transactions/user/${user.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const payload = await res.json();
+
+      if (!res.ok) {
+        throw new Error(payload.error?.message || payload.error || 'Failed to fetch user transactions.');
+      }
+
+      setUserTransactions(Array.isArray(payload.data) ? payload.data : (Array.isArray(payload) ? payload : []));
+    } catch (error) {
+      setUserTransactionsError(error instanceof Error ? error.message : 'Failed to fetch user transactions.');
+    } finally {
+      setIsLoadingUserTransactions(false);
+    }
+  };
 
   // Update user KYC status
   const handleUpdateKyc = async (userId: string | number, newKyc: string) => {
@@ -1147,6 +1179,13 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                           ) : (
                             <div className="flex gap-2 justify-end items-center">
                               <button
+                                onClick={() => handleViewUserTransactions(u)}
+                                className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                title="View User Transactions"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
                                 onClick={() => handleStartEdit(u)}
                                 className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                                 title="Edit Profile Details"
@@ -1719,6 +1758,161 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
           </div>
         </div>
       )}
+
+      {/* USER TRANSACTION LEDGER MODAL */}
+      {transactionUser && (() => {
+        const filteredTransactions = transactionStatusFilter === 'ALL'
+          ? userTransactions
+          : userTransactions.filter((transaction) =>
+            String(transaction.status || '').toUpperCase() === transactionStatusFilter
+          );
+        const totalCredits = userTransactions
+          .filter((transaction) => String(transaction.type).toUpperCase() === 'CREDIT')
+          .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+        const totalDebits = userTransactions
+          .filter((transaction) => String(transaction.type).toUpperCase() === 'DEBIT')
+          .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-5xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
+              <div className="px-6 md:px-8 py-6 bg-slate-900 text-white flex justify-between items-center gap-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Member Transaction Ledger</p>
+                  <h4 className="text-lg font-extrabold mt-0.5">
+                    {transactionUser.first_name || transactionUser.firstName} {transactionUser.last_name || transactionUser.lastName}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    #{transactionUser.account_number || transactionUser.accountNumber} · {transactionUser.email}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTransactionUser(null)}
+                  className="w-10 h-10 shrink-0 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all"
+                  title="Close transaction ledger"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 md:p-8 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                  <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Transactions</p>
+                    <p className="text-xl font-extrabold text-slate-800 mt-1">{userTransactions.length}</p>
+                  </div>
+                  <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Total Credits</p>
+                    <p className="text-xl font-extrabold text-emerald-700 mt-1">{formatCurrency(totalCredits)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-rose-50 border border-rose-100 p-4">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-rose-600">Total Debits</p>
+                    <p className="text-xl font-extrabold text-rose-700 mt-1">{formatCurrency(totalDebits)}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div className="flex flex-wrap gap-2">
+                    {['ALL', 'PENDING', 'COMPLETED', 'DECLINED'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => setTransactionStatusFilter(status)}
+                        className={cn(
+                          "px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all",
+                          transactionStatusFilter === status
+                            ? "bg-[#003399] text-white"
+                            : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                        )}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handleViewUserTransactions(transactionUser)}
+                    disabled={isLoadingUserTransactions}
+                    className="px-3 py-2 rounded-xl bg-blue-50 text-[#003399] text-[10px] font-bold flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", isLoadingUserTransactions && "animate-spin")} />
+                    Refresh
+                  </button>
+                </div>
+
+                {isLoadingUserTransactions ? (
+                  <div className="h-48 flex flex-col items-center justify-center text-slate-400">
+                    <RefreshCw className="w-6 h-6 animate-spin mb-3 text-[#003399]" />
+                    <p className="text-xs font-bold">Loading transaction history…</p>
+                  </div>
+                ) : userTransactionsError ? (
+                  <div className="p-5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-sm font-semibold">
+                    {userTransactionsError}
+                  </div>
+                ) : filteredTransactions.length === 0 ? (
+                  <div className="h-48 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                    <FileText className="w-7 h-7 mb-3" />
+                    <p className="text-sm font-bold">No {transactionStatusFilter === 'ALL' ? '' : transactionStatusFilter.toLowerCase()} transactions found</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                    <table className="w-full text-left min-w-[760px]">
+                      <thead className="bg-slate-50">
+                        <tr className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          <th className="p-4">Date / Reference</th>
+                          <th className="p-4">Description</th>
+                          <th className="p-4">Type</th>
+                          <th className="p-4">Amount</th>
+                          <th className="p-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredTransactions.map((transaction) => {
+                          const type = String(transaction.type || '').toUpperCase();
+                          const status = String(transaction.status || 'PENDING').toUpperCase();
+                          const dateValue = transaction.transaction_date || transaction.created_at;
+                          return (
+                            <tr key={transaction.id || transaction.reference} className="hover:bg-slate-50/70">
+                              <td className="p-4">
+                                <p className="text-xs font-bold text-slate-700">
+                                  {dateValue ? new Date(dateValue).toLocaleDateString() : 'No date'}
+                                </p>
+                                <p className="text-[9px] font-mono text-slate-400 mt-1">{transaction.reference || `#${transaction.id}`}</p>
+                              </td>
+                              <td className="p-4">
+                                <p className="text-xs font-bold text-slate-700">{transaction.description || 'Transaction'}</p>
+                                <p className="text-[9px] uppercase tracking-wider text-slate-400 mt-1">{transaction.category || 'General'}</p>
+                              </td>
+                              <td className="p-4">
+                                <span className={cn(
+                                  "text-[9px] font-bold px-2 py-1 rounded-full",
+                                  type === 'CREDIT' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                                )}>{type || 'DEBIT'}</span>
+                              </td>
+                              <td className={cn("p-4 text-sm font-extrabold", type === 'CREDIT' ? "text-emerald-600" : "text-slate-800")}>
+                                {type === 'CREDIT' ? '+' : '-'}{formatCurrency(Number(transaction.amount || 0))}
+                                <span className="block text-[9px] font-bold text-slate-400 mt-1">{transaction.currency || ''}</span>
+                              </td>
+                              <td className="p-4">
+                                <span className={cn(
+                                  "text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider",
+                                  status === 'COMPLETED'
+                                    ? "bg-emerald-50 text-emerald-600"
+                                    : status === 'PENDING'
+                                      ? "bg-amber-50 text-amber-600"
+                                      : "bg-rose-50 text-rose-600"
+                                )}>{status}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {resetPasswordUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
