@@ -72,7 +72,7 @@ export default function CardsPage({
 
   const fetchCards = useCallback(async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch('/api/v1/cards/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -97,7 +97,7 @@ export default function CardsPage({
     setError('');
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch('/api/v1/cards/apply', {
         method: 'POST',
         headers: {
@@ -131,7 +131,7 @@ export default function CardsPage({
     if (activeApplication?.status !== 'AWAITING_PAYMENT') return;
 
     setPaymentModalOpen(true);
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
     fetch('/api/v1/cards/payment-instructions', {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -166,7 +166,7 @@ export default function CardsPage({
     setError('');
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch(
         `/api/v1/cards/${activeApplication.id}/txn-reference`,
         {

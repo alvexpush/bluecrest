@@ -90,7 +90,7 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch('/api/v1/users/kyc', {
         method: 'POST',
         headers: { 

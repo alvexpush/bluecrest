@@ -1,5 +1,7 @@
+import { getAuthToken } from './auth-storage';
+
 export async function apiRequest<T = any>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   const response = await fetch(path, {
     ...options,
     headers: {

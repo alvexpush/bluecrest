@@ -273,7 +273,7 @@ export function TransferVerificationModal({
     event.preventDefault();
     setLoading(true); setError(''); setNoCode(false);
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch('/api/v1/transfer-verification/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

@@ -39,7 +39,7 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
     const delayDebounce = setTimeout(async () => {
       setLookupLoading(true);
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
         const response = await fetch(`/api/v1/users/lookup?account_number=${encodeURIComponent(normalizedAccount)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });

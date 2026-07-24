@@ -31,7 +31,7 @@ export default function SandboxPanel({ user, onRefreshUser, loans = [], onRefres
 
   const loadPanelLoans = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       if (!user.id) return;
       const response = await fetch(`/api/v1/loans/user/${user.id}`, {
         headers: {
@@ -51,7 +51,7 @@ export default function SandboxPanel({ user, onRefreshUser, loans = [], onRefres
     setIsSyncing(true);
     setResponseMsg('');
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const res = await fetch('/api/v1/test/sandbox', {
         method: 'POST',
         headers: { 

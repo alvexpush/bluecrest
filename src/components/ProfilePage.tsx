@@ -54,7 +54,7 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
       setIsLoading(true);
       setErrorMsg('');
       setSuccessMsg('');
-      const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       try {
         const res = await fetch('/api/v1/profile', {
           method: 'PUT',
@@ -85,7 +85,7 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
     setErrorMsg('');
     setSuccessMsg('');
 
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
     try {
       const res = await fetch('/api/v1/profile', {
         method: 'PUT',
@@ -128,7 +128,7 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
     event.preventDefault(); setIsLoading(true); setErrorMsg(''); setSuccessMsg('');
     if (newPassword !== confirmPassword) { setIsLoading(false); return setErrorMsg('Passwords do not match.'); }
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch('/api/v1/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

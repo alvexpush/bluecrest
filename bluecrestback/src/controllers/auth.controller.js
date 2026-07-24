@@ -98,6 +98,38 @@ async function completeLoginCode(req, res, body) {
     }
 }
 
+async function completeLoginEmailCode(req, res, body) {
+    try {
+        return successResponse(res, await authService.completeLoginEmailCode(body), 'Email code verified');
+    } catch (error) {
+        return errorResponse(res, error.message, 401);
+    }
+}
+
+async function resendLoginEmailCode(req, res, body) {
+    try {
+        return successResponse(res, await authService.resendLoginEmailCode(body.challenge_token), 'A new email code was sent');
+    } catch (error) {
+        return errorResponse(res, error.message, 400);
+    }
+}
+
+async function completeRegistrationEmailCode(req, res, body) {
+    try {
+        return successResponse(res, await authService.completeRegistrationEmailCode(body), 'Registration email confirmed');
+    } catch (error) {
+        return errorResponse(res, error.message, 400);
+    }
+}
+
+async function resendRegistrationEmailCode(req, res, body) {
+    try {
+        return successResponse(res, await authService.resendRegistrationEmailCode(body.challenge_token), 'A new registration code was sent');
+    } catch (error) {
+        return errorResponse(res, error.message, 400);
+    }
+}
+
 async function forgotPassword(req, res, body) {
     try {
         return successResponse(res, await authService.requestPasswordReset(body.email), 'Password reset requested');
@@ -159,6 +191,10 @@ async function verifyEmail(req, res, body) {
 module.exports = {
     login,
     completeLoginCode,
+    completeLoginEmailCode,
+    resendLoginEmailCode,
+    completeRegistrationEmailCode,
+    resendRegistrationEmailCode,
     me,
     logout
     ,forgotPassword

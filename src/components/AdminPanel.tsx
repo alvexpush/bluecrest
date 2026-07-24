@@ -141,7 +141,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   const [userTransactionsError, setUserTransactionsError] = useState('');
 
   const formatCurrency = formatUserCurrency || ((amt: number) => `$${amt.toLocaleString()}`);
-  const token = localStorage.getItem('auth_token');
+  const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
 
   const fetchData = async () => {
     setIsLoading(true);

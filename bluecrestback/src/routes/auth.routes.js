@@ -16,6 +16,22 @@ async function authRoutes(req, res, body) {
         return authController.completeLoginCode(req, res, body);
     }
 
+    if (req.method === 'POST' && req.url === '/api/v1/auth/login-email-code') {
+        return authController.completeLoginEmailCode(req, res, body);
+    }
+
+    if (req.method === 'POST' && req.url === '/api/v1/auth/login-email-code/resend') {
+        return authController.resendLoginEmailCode(req, res, body);
+    }
+
+    if (req.method === 'POST' && req.url === '/api/v1/auth/registration-email-code') {
+        return authController.completeRegistrationEmailCode(req, res, body);
+    }
+
+    if (req.method === 'POST' && req.url === '/api/v1/auth/registration-email-code/resend') {
+        return authController.resendRegistrationEmailCode(req, res, body);
+    }
+
     if (req.method === 'POST' && req.url === '/api/v1/auth/forgot-password') {
         return authController.forgotPassword(req, res, body);
     }

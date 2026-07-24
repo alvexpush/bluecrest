@@ -7,8 +7,9 @@ const {
 
 const userService =
     require('../services/user.service');
+const userRepository = require('../repositories/user.repository');
 const authService = require('../services/auth.service');
-const emailService = require('../services/email.service');
+const db = require('../database/db');
 
 const {
     successResponse,
@@ -31,17 +32,29 @@ async function register(req, res, body) {
             );
         }
 
-        const user =
-            await userService.registerUser(body);
-
-        user.login_code_enrollment_token = await authService.createLoginCodeEnrollment(user.id);
-
-        try {
-            await emailService.issueEmailVerification(user);
-        } catch (emailError) {
-            // Registration must remain successful if the mail provider is temporarily unavailable.
-            console.error('Registration verification email failed:', emailError.message);
+        const normalizedEmail = String(body.email || '').trim().toLowerCase();
+        const pendingUser = await userRepository.findUserByEmail(normalizedEmail);
+        if (pendingUser?.status === 'PENDING_EMAIL') {
+            const verification = await authService.createRegistrationEmailVerification(pendingUser.id);
+            delete pendingUser.password;
+            delete pendingUser.login_code_hash;
+            delete pendingUser.transfer_pin;
+            pendingUser.registration_email_challenge_token = verification.challenge_token;
+            pendingUser.masked_email = verification.masked_email;
+            pendingUser.email_verification_expires_at = verification.expires_at;
+            if (verification.development_code) pendingUser.development_code = verification.development_code;
+            return successResponse(res, pendingUser, 'Email confirmation restarted');
         }
+
+        const user = await userService.registerUser(body);
+
+        await db.query(`UPDATE users SET status = 'PENDING_EMAIL' WHERE id = ?`, [user.id]);
+        user.status = 'PENDING_EMAIL';
+        const verification = await authService.createRegistrationEmailVerification(user.id);
+        user.registration_email_challenge_token = verification.challenge_token;
+        user.masked_email = verification.masked_email;
+        user.email_verification_expires_at = verification.expires_at;
+        if (verification.development_code) user.development_code = verification.development_code;
 
         await activityService.logActivity({
             user_id: user.id,

@@ -19,8 +19,8 @@ async function createLoan(
         throw new Error('Loan amount must be greater than 0');
     }
 
-    if (requestedAmount > 1500) {
-        throw new Error('Eligible loan amount cannot exceed 1,500');
+    if (requestedAmount > 400) {
+        throw new Error('Eligible loan amount cannot exceed 400');
     }
 
     if (

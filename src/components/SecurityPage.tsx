@@ -34,7 +34,7 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
 
     setIsLoading(true);
 
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
     try {
       const response = await fetch('/api/v1/users/transfer-pin', {
         method: 'POST',

@@ -19,7 +19,7 @@ export interface Loan {
   createdDate: string;
 }
 
-const MAX_ELIGIBLE_LOAN = 1500;
+const MAX_ELIGIBLE_LOAN = 400;
 
 export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUserCurrency }: LoansPageProps) {
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -49,7 +49,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
 
   const fetchLoans = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       if (!user.id) return;
       const response = await fetch(`/api/v1/loans/user/${user.id}`, {
         headers: {
@@ -102,7 +102,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       const response = await fetch('/api/v1/loans', {
         method: 'POST',
         headers: { 

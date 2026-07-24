@@ -309,7 +309,7 @@ function money(amount, currency = 'USD') {
 
 async function issueEmailVerification(user, options = {}) {
     if (!user?.id || !user?.email) throw new Error('A valid user is required');
-    if (Number(user.email_verified) === 1) return { verified: true, already_verified: true };
+    if (!options.force && Number(user.email_verified) === 1) return { verified: true, already_verified: true };
 
     const existingRows = await db.query(
         'SELECT created_at FROM email_verifications WHERE user_id = ? ORDER BY id DESC',
@@ -322,7 +322,7 @@ async function issueEmailVerification(user, options = {}) {
         : createdAtText
             ? new Date(createdAtText.includes('T') ? createdAtText : `${createdAtText.replace(' ', 'T')}Z`).getTime()
             : 0;
-    if (options.deliver !== false && lastIssuedAt && Date.now() - lastIssuedAt < 60_000) {
+    if (!options.bypassCooldown && options.deliver !== false && lastIssuedAt && Date.now() - lastIssuedAt < 60_000) {
         throw new Error('Please wait one minute before requesting another code');
     }
 
@@ -351,9 +351,9 @@ async function issueEmailVerification(user, options = {}) {
     return result;
 }
 
-async function verifyEmailCode(user, rawCode) {
+async function verifyEmailCode(user, rawCode, options = {}) {
     if (!user?.id) throw new Error('Authentication is required');
-    if (Number(user.email_verified) === 1) return { verified: true, already_verified: true };
+    if (!options.force && Number(user.email_verified) === 1) return { verified: true, already_verified: true };
 
     const code = String(rawCode || '').trim();
     if (!/^\d{6}$/.test(code)) throw new Error('Enter the 6-digit confirmation code');

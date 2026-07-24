@@ -80,7 +80,7 @@ export default function DashboardOverview({
 
   useEffect(() => {
     if (!activeUser?.id) return;
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
 
     fetch(`/api/v1/loans/user/${activeUser.id}`, {
       headers: { Authorization: `Bearer ${token}` }

@@ -286,9 +286,18 @@ test('internal transfer debits sender and credits recipient exactly once', async
 });
 
 test('loan disbursement credits exactly once', async () => {
+    const borrower = await userRepository.findUserById(2);
+    await assert.rejects(
+        loanService.createLoan(borrower, {
+            requested_amount: 401,
+            purpose: 'Over current eligibility'
+        }),
+        /cannot exceed 400/
+    );
+
     const loan = await loanRepository.createLoan({
         user_id: 2,
-        requested_amount: 500,
+        requested_amount: 400,
         purpose: 'Test',
         status: 'READY_FOR_DISBURSEMENT',
         fee_status: 'PAID'
@@ -297,7 +306,7 @@ test('loan disbursement credits exactly once', async () => {
     await loanService.disburseLoan(loan.id, 1);
     await loanService.disburseLoan(loan.id, 1);
 
-    assert.equal(Number((await userRepository.findUserById(2)).balance), 1150);
+    assert.equal(Number((await userRepository.findUserById(2)).balance), 1050);
 });
 
 test('withdrawal completion debits exactly once', async () => {
@@ -316,7 +325,7 @@ test('withdrawal completion debits exactly once', async () => {
     await withdrawalService.updateStatus({ id: 1 }, withdrawal.id, 'COMPLETED');
     await withdrawalService.updateStatus({ id: 1 }, withdrawal.id, 'COMPLETED');
 
-    assert.equal(Number((await userRepository.findUserById(2)).balance), 1100);
+    assert.equal(Number((await userRepository.findUserById(2)).balance), 1000);
 });
 
 test('withdrawal destinations reject passwords, PINs and full card credentials', async () => {

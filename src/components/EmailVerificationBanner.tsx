@@ -19,7 +19,7 @@ export default function EmailVerificationBanner({ user, onVerified }: EmailVerif
   }, [user?.email]);
 
   const request = async (path: string, payload?: Record<string, string>) => {
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
     const response = await fetch(path, {
       method: 'POST',
       headers: {

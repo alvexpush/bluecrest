@@ -8,7 +8,7 @@ function cn(...classes: (string | boolean | undefined)[]) {
 }
 
 interface LoginPageProps {
-  onLogin: (userProfile: any, token: string) => void;
+  onLogin: (userProfile: any, token: string, keepSignedIn: boolean) => void;
   lang: LanguageCode;
   onLanguageChange: (code: LanguageCode) => void;
 }
@@ -176,7 +176,7 @@ const COUNTRY_CURRENCY_LIST = [
 ];
 
 export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPageProps) {
-  const [view, setView] = useState<'login' | 'register' | 'register-code' | 'forgot'>('login');
+  const [view, setView] = useState<'login' | 'register' | 'register-email' | 'register-code' | 'forgot'>('login');
   
   // Login State
   const [email, setEmail] = useState('');
@@ -189,6 +189,9 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
   const [loginCode, setLoginCode] = useState('');
   const [loginCodeConfirmation, setLoginCodeConfirmation] = useState('');
   const [loginCodeSetupRequired, setLoginCodeSetupRequired] = useState(false);
+  const [emailCode, setEmailCode] = useState('');
+  const [maskedLoginEmail, setMaskedLoginEmail] = useState('');
+  const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [resetRequested, setResetRequested] = useState(false);
@@ -208,6 +211,9 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
   const [regLoginCode, setRegLoginCode] = useState('');
   const [regLoginCodeConfirmation, setRegLoginCodeConfirmation] = useState('');
   const [registrationEnrollmentToken, setRegistrationEnrollmentToken] = useState('');
+  const [registrationEmailChallengeToken, setRegistrationEmailChallengeToken] = useState('');
+  const [registrationEmailCode, setRegistrationEmailCode] = useState('');
+  const [registrationMaskedEmail, setRegistrationMaskedEmail] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -277,7 +283,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error?.message || 'Could not change password');
       setPendingLoginUser((user: any) => ({ ...user, force_password_change: 0 }));
-      onLogin({ ...pendingLoginUser, force_password_change: 0 }, pendingToken);
+      onLogin({ ...pendingLoginUser, force_password_change: 0 }, pendingToken, keepSignedIn);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -295,21 +301,75 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
       const response = await fetch('/api/v1/auth/login-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge_token: preAuthToken, login_code: loginCode, login_code_confirmation: loginCodeConfirmation })
+        body: JSON.stringify({
+          challenge_token: preAuthToken,
+          login_code: loginCode,
+          login_code_confirmation: loginCodeConfirmation,
+          keep_signed_in: keepSignedIn
+        })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message || data.error || 'Login code verification failed.');
       const result = data?.data || data;
-      if (result.user?.force_password_change) {
-        setPendingLoginUser(result.user);
-        setPendingToken(result.token);
-        setStep(4);
-      } else {
-        onLogin(result.user, result.token);
-      }
+      setPreAuthToken(result.challenge_token);
+      setMaskedLoginEmail(result.masked_email || email);
+      setDevelopmentCode(result.development_code || '');
+      setEmailCode('');
+      setSuccessMsg(`A six-digit confirmation code was sent to ${result.masked_email || email}.`);
+      setStep(4);
     } catch (requestError: any) {
       setError(requestError.message);
     } finally { setIsLoading(false); }
+  };
+
+  const verifyLoginEmailCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    if (!/^\d{6}$/.test(emailCode)) return setError('Enter the exact six-digit code sent to your email.');
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/v1/auth/login-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: preAuthToken, code: emailCode })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Email confirmation failed.');
+      const result = data?.data || data;
+      if (result.user?.force_password_change) {
+        setPendingLoginUser(result.user);
+        setPendingToken(result.token);
+        setStep(5);
+      } else {
+        onLogin(result.user, result.token, keepSignedIn);
+      }
+    } catch (requestError: any) {
+      setError(requestError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendLoginEmailCode = async () => {
+    setError('');
+    setSuccessMsg('');
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/v1/auth/login-email-code/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: preAuthToken })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Could not send another code.');
+      setDevelopmentCode(data?.data?.development_code || '');
+      setSuccessMsg(`A new code was sent to ${maskedLoginEmail}.`);
+    } catch (requestError: any) {
+      setError(requestError.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const requestReset = async (e: React.FormEvent) => {
@@ -380,11 +440,14 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
       }
 
       const registeredUser = data?.data || data;
-      setRegistrationEnrollmentToken(registeredUser.login_code_enrollment_token);
+      setRegistrationEmailChallengeToken(registeredUser.registration_email_challenge_token);
+      setRegistrationMaskedEmail(registeredUser.masked_email || regEmail);
+      setRegistrationEmailCode('');
+      setDevelopmentCode(registeredUser.development_code || '');
       setEmail(regEmail);
       setRegLoginCode('');
       setRegLoginCodeConfirmation('');
-      setView('register-code');
+      setView('register-email');
       
       // Cleanup registration inputs
       setRegFirstName('');
@@ -398,6 +461,58 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
     } catch (err: any) {
       setIsLoading(false);
       setError('Could not connect to registration services.');
+    }
+  };
+
+  const completeRegistrationEmailVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    if (!/^\d{6}$/.test(registrationEmailCode)) return setError('Enter the complete six-digit code sent to your email.');
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/v1/auth/registration-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          challenge_token: registrationEmailChallengeToken,
+          code: registrationEmailCode
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Email confirmation failed.');
+      const result = data?.data || data;
+      setRegistrationEnrollmentToken(result.login_code_enrollment_token);
+      setRegistrationEmailCode('');
+      setRegistrationEmailChallengeToken('');
+      setDevelopmentCode('');
+      setSuccessMsg('Email confirmed. Create your personal login code to finish registration.');
+      setView('register-code');
+    } catch (requestError: any) {
+      setError(requestError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendRegistrationEmailCode = async () => {
+    setError('');
+    setSuccessMsg('');
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/v1/auth/registration-email-code/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: registrationEmailChallengeToken })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Could not send another code.');
+      setDevelopmentCode(data?.data?.development_code || '');
+      setSuccessMsg(`A new code was sent to ${registrationMaskedEmail}.`);
+    } catch (requestError: any) {
+      setError(requestError.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -458,12 +573,12 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-                {view === 'login' ? t('welcome', 'Welcome Back') : view === 'forgot' ? 'Reset Password' : view === 'register-code' ? 'Secure Your Account' : t('createAccountTitle', 'Create Account')}
+                {view === 'login' ? t('welcome', 'Welcome Back') : view === 'forgot' ? 'Reset Password' : view === 'register-email' ? 'Confirm Your Email' : view === 'register-code' ? 'Secure Your Account' : t('createAccountTitle', 'Create Account')}
               </h1>
               <p className="text-blue-100/80 text-base mb-10">
                 {view === 'login'
                   ? t('welcomeDesc', 'Access your premier financial portal securely.') 
-                  : view === 'forgot' ? 'Recover access using a short-lived email verification code.' : view === 'register-code' ? 'Finish account setup with your private four-digit login code.' : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
+                  : view === 'forgot' ? 'Recover access using a short-lived email verification code.' : view === 'register-email' ? 'Verify your email address before completing registration.' : view === 'register-code' ? 'Finish account setup with your private four-digit login code.' : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
               </p>
             </div>
 
@@ -547,6 +662,18 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             required
                           />
                         </div>
+                        <label className="flex items-center gap-3 px-1 pt-1 text-sm font-semibold text-slate-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={keepSignedIn}
+                            onChange={(event) => setKeepSignedIn(event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 accent-[#003399]"
+                          />
+                          <span>
+                            Keep me signed in
+                            <span className="block text-[11px] font-medium text-slate-400">Use only on your personal device.</span>
+                          </span>
+                        </label>
                       </div>
 
                       <button 
@@ -606,13 +733,43 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                         <input type="password" inputMode="numeric" maxLength={4} value={loginCodeConfirmation} onChange={e => setLoginCodeConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="Confirm login code" className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.5em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all" required />
                       </div>}
                       <button type="submit" disabled={isLoading || loginCode.length !== 4} className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-50">
-                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{loginCodeSetupRequired ? 'Save Code & Continue' : 'Open Dashboard'} <ArrowRight className="w-5 h-5" /></>}
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{loginCodeSetupRequired ? 'Save Code & Continue' : 'Continue to Email Code'} <ArrowRight className="w-5 h-5" /></>}
                       </button>
                       <button type="button" onClick={() => { setStep(2); setError(''); setLoginCode(''); }} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest">Back to password</button>
                     </form>
                   )}
 
                   {step === 4 && (
+                    <form onSubmit={verifyLoginEmailCode} className="space-y-6">
+                      <div className="text-center md:text-left">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Confirm your email</label>
+                        <span className="text-slate-500 text-xs font-medium">Enter the six-digit code sent to {maskedLoginEmail || email}. Email confirmation is required every time you sign in.</span>
+                      </div>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          value={emailCode}
+                          onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="6-digit email code"
+                          className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.4em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all"
+                          required
+                          autoFocus
+                        />
+                      </div>
+                      {developmentCode && <p className="text-center text-xs font-semibold text-amber-700 bg-amber-50 rounded-xl p-3">Development code: {developmentCode}</p>}
+                      <button type="submit" disabled={isLoading || emailCode.length !== 6} className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-50">
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Confirm Email & Open Dashboard <ArrowRight className="w-5 h-5" /></>}
+                      </button>
+                      <button type="button" disabled={isLoading} onClick={resendLoginEmailCode} className="w-full text-xs font-bold text-[#003399] disabled:opacity-50">Send another code</button>
+                      <button type="button" onClick={() => { setStep(2); setError(''); setSuccessMsg(''); setEmailCode(''); }} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest">Restart sign in</button>
+                    </form>
+                  )}
+
+                  {step === 5 && (
                     <form onSubmit={verifyConfirmPassword} className="space-y-6">
                       <div className="space-y-2">
                         <div className="text-center md:text-left">
@@ -678,6 +835,26 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                   {!resetRequested ? <form onSubmit={requestReset} className="space-y-4"><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="field-control" placeholder="Registered email" required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Sending…' : 'Send Reset Code'}</button></form>
                   : <form onSubmit={completeReset} className="space-y-4"><input value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))} className="field-control" placeholder="6-digit reset code" required /><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder="New password" required /><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder="Confirm new password" required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Updating…' : 'Reset Password'}</button></form>}
                   <button onClick={() => { setView('login'); setResetRequested(false); setError(''); }} className="w-full mt-5 text-xs font-bold text-slate-400">Back to sign in</button>
+                </motion.div>
+              ) : view === 'register-email' ? (
+                <motion.div key="register-email-view" initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} className="max-w-md mx-auto w-full">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#003399] flex items-center justify-center mx-auto md:mx-0 mb-5"><Mail className="w-8 h-8"/></div>
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Verify Your Email</h2>
+                  <p className="text-sm text-slate-500 mb-6">We sent a six-digit confirmation code to <strong>{registrationMaskedEmail || email}</strong>. Confirm it before your Blue Crest registration can be completed.</p>
+                  {successMsg && <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold">{successMsg}</div>}
+                  {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold">{error}</div>}
+                  {developmentCode && <div className="mb-4 p-3 rounded-xl bg-amber-50 text-amber-700 text-xs font-bold text-center">Development code: {developmentCode}</div>}
+                  <form onSubmit={completeRegistrationEmailVerification} className="space-y-4">
+                    <div>
+                      <label className="form-label">Email confirmation code</label>
+                      <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={registrationEmailCode} onChange={(event) => setRegistrationEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} className="field-control text-center tracking-[0.4em] text-lg" placeholder="6-digit code" required autoFocus />
+                    </div>
+                    <button disabled={isLoading || registrationEmailCode.length !== 6} className="w-full h-14 rounded-xl bg-[#003399] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+                      {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <>Confirm Email <ArrowRight className="w-5 h-5"/></>}
+                    </button>
+                  </form>
+                  <button type="button" onClick={resendRegistrationEmailCode} disabled={isLoading} className="w-full mt-5 text-xs font-bold text-[#003399] disabled:opacity-50">Send another code</button>
+                  <p className="mt-4 text-center text-[11px] font-medium text-slate-400">Check your Spam or Junk folder if the message does not appear in your inbox.</p>
                 </motion.div>
               ) : view === 'register-code' ? (
                 <motion.div key="register-code-view" initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} className="max-w-md mx-auto w-full">

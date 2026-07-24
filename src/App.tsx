@@ -31,6 +31,7 @@ import { RestrictedModal, TransferSuccessModal, TransferCodeModal, TransferVerif
 import { motion, AnimatePresence } from 'motion/react';
 import { USER_DATA, TRANSACTIONS } from './constants';
 import { cn } from './lib/utils';
+import { clearAuthSession, getAuthToken, getAuthUser, storeAuthSession, updateStoredAuthUser } from './lib/auth-storage';
 
 const formatTransactionCategory = (category?: string) => {
   const normalized = String(category || '').trim().toLowerCase();
@@ -69,8 +70,7 @@ const formatTransactionDescription = (description?: string) => {
 
 export default function App() {
 const clearStoredSession = useCallback(() => {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('auth_user');
+  clearAuthSession();
   localStorage.removeItem('bank_transactions');
   localStorage.removeItem('bank_balance');
   localStorage.removeItem('bank_transfer_count');
@@ -78,7 +78,7 @@ const clearStoredSession = useCallback(() => {
 
 useEffect(() => {
   try {
-    const saved = localStorage.getItem('auth_user');
+    const saved = getAuthUser();
 
     if (!saved) return;
 
@@ -88,10 +88,7 @@ useEffect(() => {
       delete user.id_front_image;
       delete user.id_back_image;
 
-      localStorage.setItem(
-        'auth_user',
-        JSON.stringify(user)
-      );
+      updateStoredAuthUser(JSON.stringify(user));
     }
   } catch (err) {
     console.error(err);
@@ -99,12 +96,12 @@ useEffect(() => {
 }, []);
   
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('auth_user');
+    const saved = getAuthUser();
     return saved ? JSON.parse(saved) : USER_DATA;
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return !!localStorage.getItem('auth_token');
+    return !!getAuthToken();
   });
 
   const [lang, setLang] = useState<LanguageCode>(() => {
@@ -180,7 +177,7 @@ useEffect(() => {
 
   // Synchronize state with backend API
   const syncUserData = useCallback(() => {
-    const token = localStorage.getItem('auth_token');
+    const token = getAuthToken();
     if (!token) return;
 
     // 1. Fetch user values (balance, transfer count)
@@ -293,7 +290,7 @@ useEffect(() => {
 
   useEffect(() => {
     if (!isLoggedIn || activeTab === 'notifications') return;
-    const token = localStorage.getItem('auth_token');
+    const token = getAuthToken();
     const loadUnread = () => fetch('/api/v1/notifications', { headers: { Authorization: `Bearer ${token}` } })
       .then(response => response.ok ? response.json() : Promise.reject())
       .then(payload => setUnreadNotificationCount((payload.data || []).filter((note: any) => !Number(note.is_read)).length))
@@ -306,7 +303,7 @@ useEffect(() => {
   const handleViewNotifications = useCallback(async () => {
     setUnreadNotificationCount(0);
 
-    const token = localStorage.getItem('auth_token');
+    const token = getAuthToken();
     try {
       const response = await fetch('/api/v1/notifications/read-all', {
         method: 'PATCH',
@@ -323,7 +320,7 @@ useEffect(() => {
   const submitTransfer = useCallback(async (pin: string, verificationToken = '') => {
     if (!pendingTransfer || !currentUser) return;
 
-    const token = localStorage.getItem('auth_token');
+    const token = getAuthToken();
     const response = await fetch('/api/v1/transfers', {
       method: 'POST',
       headers: {
@@ -377,7 +374,7 @@ useEffect(() => {
       return;
     }
 
-    const token = localStorage.getItem('auth_token');
+    const token = getAuthToken();
     const response = await fetch('/api/v1/transfer-verification/verify-pin', {
       method: 'POST',
       headers: {
@@ -401,11 +398,11 @@ useEffect(() => {
     delete cleanUser.id_front_image;
     delete cleanUser.id_back_image;
 
-    localStorage.setItem('auth_user', JSON.stringify(cleanUser));
+    updateStoredAuthUser(JSON.stringify(cleanUser));
   };
   
   
-  const handleUserLogin = (userProfile: any, token: string) => {
+  const handleUserLogin = (userProfile: any, token: string, keepSignedIn: boolean) => {
     const {
   id_front_image,
   id_back_image,
@@ -434,8 +431,7 @@ Object.keys(userProfile).forEach(key => {
 console.log('auth_user size:', userString.length);
 console.log('mappedUser:', mappedUser);
 
-localStorage.setItem('auth_token', token);
-localStorage.setItem('auth_user', userString);
+storeAuthSession(token, userString, keepSignedIn);
 
 setCurrentUser(mappedUser);
 setBalance(mappedUser.balance);
@@ -444,6 +440,13 @@ setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
+    const token = getAuthToken();
+    if (token) {
+      fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => undefined);
+    }
     clearStoredSession();
     setIsLoggedIn(false);
     setCurrentUser(USER_DATA);

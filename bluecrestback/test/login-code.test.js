@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const databasePath = path.join(__dirname, 'login-code.test.db');
 fs.rmSync(databasePath, { force: true });
 process.env.SQLITE_DB_PATH = databasePath;
+process.env.NODE_ENV = 'test';
 delete process.env.DATABASE_URL;
 
 const initializeDatabase = require('../src/database/init');
@@ -78,13 +79,43 @@ test('post-registration enrollment saves the code without creating a dashboard s
     assert.equal((await db.query(`SELECT COUNT(*) AS count FROM sessions`))[0].count, 0);
 });
 
-test('an existing customer enrolls a code once and receives a real session', async () => {
+test('new registrations cannot sign in until their email code is confirmed', async () => {
+    const user = await userService.registerUser({
+        first_name: 'Pending', last_name: 'Customer', username: 'pending-customer',
+        email: 'pending@example.com', phone: '+15550000007', password: 'Password123!',
+        preferred_currency: 'USD', account_type: 'CHECKING'
+    });
+    await db.query(`UPDATE users SET status = 'PENDING_EMAIL' WHERE id = ?`, [user.id]);
+    const verification = await authService.createRegistrationEmailVerification(user.id);
+
+    await assert.rejects(
+        authService.login(user.email, 'Password123!'),
+        /Complete your email confirmation/
+    );
+
+    const completed = await authService.completeRegistrationEmailCode({
+        challenge_token: verification.challenge_token,
+        code: verification.development_code
+    });
+    assert.equal(completed.verified, true);
+    assert.ok(completed.login_code_enrollment_token);
+    assert.equal((await db.query(`SELECT status FROM users WHERE id = ?`, [user.id]))[0].status, 'ACTIVE');
+    assert.ok((await authService.login(user.email, 'Password123!')).challenge_token);
+});
+
+test('an existing customer enrolls a code and must confirm the emailed code before receiving a session', async () => {
     const challenge = await authService.login('existing@example.com', 'Password123!');
     await db.query(`UPDATE users SET login_code_hash = NULL WHERE email = 'existing@example.com'`);
-    const result = await authService.completeLoginCode({
+    const emailChallenge = await authService.completeLoginCode({
         challenge_token: challenge.challenge_token,
         login_code: '2468',
         login_code_confirmation: '2468'
+    });
+    assert.equal(emailChallenge.requires_email_code, true);
+    assert.equal((await db.query(`SELECT COUNT(*) AS count FROM sessions`))[0].count, 0);
+    const result = await authService.completeLoginEmailCode({
+        challenge_token: emailChallenge.challenge_token,
+        code: emailChallenge.development_code
     });
     assert.ok(result.token);
     assert.equal(result.user.login_code_set, true);
@@ -99,16 +130,24 @@ test('future logins reject the wrong code and accept the enrolled code', async (
         /Incorrect login code/
     );
     const result = await authService.completeLoginCode({ challenge_token: challenge.challenge_token, login_code: '2468' });
-    assert.ok(result.token);
+    assert.equal(result.requires_email_code, true);
+    assert.equal(result.token, undefined);
+    const authenticated = await authService.completeLoginEmailCode({
+        challenge_token: result.challenge_token,
+        code: result.development_code
+    });
+    assert.ok(authenticated.token);
 });
 
 test('email remains pending until the six-digit confirmation code is accepted', async () => {
     const user = (await db.query(`SELECT * FROM users WHERE email = 'existing@example.com'`))[0];
-    const issued = await emailService.issueEmailVerification(user, { deliver: false });
+    await db.query(`UPDATE users SET email_verified = 0 WHERE id = ?`, [user.id]);
+    user.email_verified = 0;
+    const issued = await emailService.issueEmailVerification(user, { deliver: false, force: true });
 
     assert.match(issued.development_code, /^\d{6}$/);
     await assert.rejects(
-        emailService.verifyEmailCode(user, '000000'),
+        emailService.verifyEmailCode(user, '000000', { force: true }),
         /Invalid confirmation code/
     );
     assert.notEqual(
@@ -116,7 +155,7 @@ test('email remains pending until the six-digit confirmation code is accepted', 
         1
     );
 
-    const verified = await emailService.verifyEmailCode(user, issued.development_code);
+    const verified = await emailService.verifyEmailCode(user, issued.development_code, { force: true });
     assert.equal(verified.verified, true);
     assert.equal(
         Number((await db.query(`SELECT email_verified FROM users WHERE id = ?`, [user.id]))[0].email_verified),
