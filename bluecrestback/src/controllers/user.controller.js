@@ -269,6 +269,7 @@ async function updateUserProfile(req, res, body, userId) {
             delete body.role;
             delete body.status;
             delete body.transfer_flow;
+            delete body.transfer_hold_message;
             delete body.transfer_pin;
         }
         const user = await userService.updateUser(userId, body);

@@ -7,6 +7,8 @@ export default function AdminSecurity({ users }: { users: any[] }) {
   const [attempts, setAttempts] = useState<any[]>([]);
   const [userId, setUserId] = useState('');
   const [customCode, setCustomCode] = useState('');
+  const [holdMessage, setHoldMessage] = useState('');
+  const [savedHoldMessages, setSavedHoldMessages] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState('');
   const [history, setHistory] = useState<any[]>([]);
@@ -20,6 +22,10 @@ export default function AdminSecurity({ users }: { users: any[] }) {
     setCodes(codeRows); setAttempts(attemptRows);
   }, []);
   useEffect(() => { load().catch(error => setMessage(error.message)); }, [load]);
+  useEffect(() => {
+    const selectedUser = users.find(user => String(user.id) === String(userId));
+    setHoldMessage(savedHoldMessages[userId] ?? selectedUser?.transfer_hold_message ?? '');
+  }, [userId, users, savedHoldMessages]);
 
   const assign = async () => {
     setBusy(true); setMessage('');
@@ -43,6 +49,20 @@ export default function AdminSecurity({ users }: { users: any[] }) {
     } catch (error: any) { setMessage(error.message); } finally { setBusy(false); }
   };
 
+  const saveHoldMessage = async () => {
+    setBusy(true); setMessage('');
+    try {
+      await apiRequest(`/api/v1/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ transfer_hold_message: holdMessage })
+      });
+      setSavedHoldMessages(current => ({ ...current, [userId]: holdMessage.trim() }));
+      setMessage(holdMessage.trim()
+        ? 'The inline transfer hold message was saved for this user.'
+        : 'The custom message was cleared. The neutral default will be shown.');
+    } catch (error: any) { setMessage(error.message); } finally { setBusy(false); }
+  };
+
   return <div className="space-y-6">
     {message && <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 text-[#003399] text-sm font-bold">{message}</div>}
     <div className="grid xl:grid-cols-2 gap-6">
@@ -52,6 +72,20 @@ export default function AdminSecurity({ users }: { users: any[] }) {
         <input value={customCode} onChange={e => setCustomCode(e.target.value.replace(/\D/g, ''))} minLength={6} maxLength={12} className="field-control" placeholder="Optional custom 6–12 digit code" />
         <button disabled={busy || !userId} onClick={assign} className="w-full py-3 rounded-xl bg-[#003399] text-white text-xs font-bold">{busy ? 'Working…' : 'Assign code & lift hold'}</button>
         <p className="text-[10px] text-slate-400">The full code is sent to the selected user's notification center. Stored codes remain hashed.</p>
+        <div className="border-t border-slate-100 pt-4 space-y-3">
+          <div>
+            <label className="form-label">Inline transfer hold message</label>
+            <textarea
+              value={holdMessage}
+              onChange={e => setHoldMessage(e.target.value.slice(0, 1200))}
+              className="field-control min-h-32 py-3"
+              placeholder="Write the information this user should see when a transfer is on hold…"
+            />
+            <p className="mt-1 text-right text-[10px] text-slate-400">{holdMessage.length}/1200</p>
+          </div>
+          <button disabled={busy || !userId} onClick={saveHoldMessage} className="w-full py-3 rounded-xl bg-slate-900 text-white text-xs font-bold">Save inline message</button>
+          <p className="text-[10px] text-slate-400">Set the user's transfer flow to “Insurance Hold” in User Management to display this message. Clear the field to use the neutral default.</p>
+        </div>
       </div>
       <div className="bg-white rounded-[2rem] p-6 border border-slate-100 space-y-4">
         <h3 className="font-extrabold flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#003399]" /> Password assistance</h3>

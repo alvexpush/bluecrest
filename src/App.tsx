@@ -662,6 +662,7 @@ return updated;
         isOpen={isRestrictedModalOpen}
         onClose={() => setIsRestrictedModalOpen(false)}
         authorizationHold={(currentUser.transfer_flow || currentUser.transferFlow) === 'AUTHORIZATION_HOLD'}
+        holdMessage={currentUser.transfer_hold_message || currentUser.transferHoldMessage || ''}
       />
       <NotificationAlert count={activeTab === 'notifications' ? 0 : unreadNotificationCount} onView={handleViewNotifications} />
       {activeTab !== 'support' && <SupportWidget />}

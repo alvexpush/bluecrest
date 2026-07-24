@@ -332,6 +332,12 @@ async function updateUser(userId, data) {
     if (!existing) {
         throw new Error('User not found');
     }
+    const transferHoldMessage = data.transfer_hold_message === undefined
+        ? undefined
+        : String(data.transfer_hold_message || '').trim();
+    if (transferHoldMessage !== undefined && transferHoldMessage.length > 1200) {
+        throw new Error('Transfer hold message cannot exceed 1,200 characters');
+    }
     const requestedEmail = data.email !== undefined
         ? String(data.email).trim().toLowerCase()
         : existing.email;
@@ -397,6 +403,10 @@ async function updateUser(userId, data) {
 
     if (data.transfer_flow !== undefined && data.transfer_flow !== null && data.transfer_flow !== '') {
         await userRepository.updateTransferFlow(userId, data.transfer_flow.toUpperCase());
+    }
+
+    if (data.transfer_hold_message !== undefined) {
+        await userRepository.updateTransferHoldMessage(userId, transferHoldMessage);
     }
 
     const updated = await userRepository.findUserById(userId);

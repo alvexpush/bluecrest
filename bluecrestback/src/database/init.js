@@ -66,6 +66,8 @@ async function initializeDatabase() {
 
           transfer_flow TEXT DEFAULT 'PENDING',
 
+          transfer_hold_message TEXT,
+
           
 
           
@@ -829,6 +831,7 @@ CREATE TABLE IF NOT EXISTS cards (
         `ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0`,
         `ALTER TABLE users ADD COLUMN password_changed_at TEXT`,
         `ALTER TABLE users ADD COLUMN login_code_hash TEXT`,
+        `ALTER TABLE users ADD COLUMN transfer_hold_message TEXT`,
         `ALTER TABLE login_challenges ADD COLUMN purpose TEXT DEFAULT 'LOGIN'`
     ];
 

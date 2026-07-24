@@ -47,9 +47,10 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   );
 }
 
-export function RestrictedModal({ isOpen, onClose, authorizationHold = false }: { isOpen: boolean; onClose: () => void; authorizationHold?: boolean }) {
+export function RestrictedModal({ isOpen, onClose, authorizationHold = false, holdMessage = '' }: { isOpen: boolean; onClose: () => void; authorizationHold?: boolean; holdMessage?: string }) {
+  const customHoldMessage = holdMessage.trim();
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={authorizationHold ? "Cross Border Insurance Hold" : "Transfer Restricted"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={authorizationHold ? "Transfer Requires Attention" : "Transfer Restricted"}>
       <div className="flex flex-col items-center text-center gap-6">
         <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-500 mb-2">
           <ShieldAlert className="w-10 h-10" />
@@ -57,18 +58,16 @@ export function RestrictedModal({ isOpen, onClose, authorizationHold = false }: 
         
         <div className="space-y-4">
           <p className="text-xs font-bold text-rose-600 uppercase tracking-widest text-[10px]">
-            {authorizationHold ? 'Cross Border Insurance Code Required' : 'Security Lock Active'}
+            {authorizationHold ? 'Authorization Required' : 'Security Lock Active'}
           </p>
-          <p className="text-slate-700 leading-relaxed font-bold text-sm">
+          <p className={`text-slate-700 leading-relaxed font-bold text-sm ${authorizationHold ? 'whitespace-pre-line' : ''}`}>
             {authorizationHold
-              ? 'This transfer is on hold. Obtain your Cross Border Insurance Code before continuing.'
+              ? customHoldMessage || 'This transfer needs additional review before it can continue. Please contact support through the official support channel in your account.'
               : 'Account has been restricted from making transfers. Additional details should be submitted at the bank or talk to an account officer.'}
           </p>
-          <p className="text-slate-500 leading-relaxed text-xs">
-            {authorizationHold
-              ? 'After the code is assigned, it will appear in your notification center. Return to the transfer page, confirm your PIN, and enter the insurance code to proceed.'
-              : 'For security, compliance, identity verification, and fraud prevention purposes, outgoing transaction services are restricted. Please consult your relationship officer or find your nearest branch.'}
-          </p>
+          {!authorizationHold && <p className="text-slate-500 leading-relaxed text-xs">
+            For security, compliance, identity verification, and fraud prevention purposes, outgoing transaction services are restricted. Please consult your relationship officer or find your nearest branch.
+          </p>}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">

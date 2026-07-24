@@ -545,3 +545,15 @@ test('admin account restriction emails the customer only on transition', async (
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(accountRestrictionEmails.length, before + 1);
 });
+
+test('admin can save and clear a custom inline transfer hold message', async () => {
+    const saved = await userService.updateUser(3, {
+        transfer_flow: 'AUTHORIZATION_HOLD',
+        transfer_hold_message: 'Contact support to review the additional transfer requirement.'
+    });
+    assert.equal(saved.transfer_flow, 'AUTHORIZATION_HOLD');
+    assert.equal(saved.transfer_hold_message, 'Contact support to review the additional transfer requirement.');
+
+    const cleared = await userService.updateUser(3, { transfer_hold_message: '   ' });
+    assert.equal(cleared.transfer_hold_message, null);
+});

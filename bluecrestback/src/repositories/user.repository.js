@@ -498,6 +498,21 @@ async function updateTransferFlow(
     return users[0];
 }
 
+async function updateTransferHoldMessage(userId, message) {
+    const parsedId = parseInt(userId, 10);
+    await db.query(
+        `UPDATE users SET transfer_hold_message = ? WHERE id = ?`,
+        [message || null, parsedId]
+    );
+
+    const users = await db.query(
+        `SELECT * FROM users WHERE id = ?`,
+        [parsedId]
+    );
+
+    return users[0];
+}
+
 async function updateUserRole(
     userId,
     role
@@ -547,6 +562,7 @@ module.exports = {
     setForcePasswordChange,
     findUserByAccountNumber,
     updateTransferFlow,
+    updateTransferHoldMessage,
     incrementBalance,
     submitKyc,
     updateKycStatus,
