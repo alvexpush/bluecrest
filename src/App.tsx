@@ -367,13 +367,11 @@ useEffect(() => {
     setIsSuccessModalOpen(true);
   }, [pendingTransfer, currentUser, syncUserData]);
 
-  const handleVerifyTransferPin = useCallback(async (pin: string) => {
+  const handleVerifyTransferPin = useCallback(async (
+    pin: string,
+    onProgress?: (stage: 'pin' | 'account' | 'processing') => void
+  ) => {
     const transferFlow = currentUser.transferFlow || currentUser.transfer_flow;
-    if (transferFlow !== 'AUTHORIZATION_REQUIRED') {
-      await submitTransfer(pin);
-      return;
-    }
-
     const token = getAuthToken();
     const response = await fetch('/api/v1/transfer-verification/verify-pin', {
       method: 'POST',
@@ -385,6 +383,22 @@ useEffect(() => {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload?.error?.message || 'Invalid transfer PIN');
+
+    onProgress?.('account');
+    await new Promise(resolve => window.setTimeout(resolve, 700));
+    onProgress?.('processing');
+    await new Promise(resolve => window.setTimeout(resolve, 700));
+
+    if (transferFlow === 'RESTRICTED' || transferFlow === 'AUTHORIZATION_HOLD') {
+      setIsTransferCodeModalOpen(false);
+      setIsRestrictedModalOpen(true);
+      return;
+    }
+
+    if (transferFlow !== 'AUTHORIZATION_REQUIRED') {
+      await submitTransfer(pin);
+      return;
+    }
 
     setAuthorizedTransferPin(pin);
     setIsTransferCodeModalOpen(false);
@@ -512,28 +526,17 @@ setIsLoggedIn(true);
             currencySymbol={getCurrencySymbol()}
             formatUserCurrency={formatUserCurrency}
             onTransferSubmit={(data: any) => {
-              const transferFlow = currentUser.transfer_flow || currentUser.transferFlow;
-              if (transferFlow === 'RESTRICTED' || transferFlow === 'AUTHORIZATION_HOLD') {
-                setIsRestrictedModalOpen(true);
-              } else {
-                // Store details for verification
-                setPendingTransfer({
-                  txnId: `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
-                  amount: data.amount,
-                  recipientName: data.recipientName,
-                  bankName: data.bankName || 'Blue Crest Bank',
-                  accountNumber: data.accountNumber,
-                  description: data.description || 'Fund Transfer',
-                  transferType: data.transferType
-                });
-
-                if (transferFlow === 'AUTHORIZATION_REQUIRED') {
-                  setAuthorizedTransferPin('');
-                  setIsTransferCodeModalOpen(true);
-                } else {
-                  setIsTransferCodeModalOpen(true);
-                }
-              }
+              setPendingTransfer({
+                txnId: `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
+                amount: data.amount,
+                recipientName: data.recipientName,
+                bankName: data.bankName || 'Blue Crest Bank',
+                accountNumber: data.accountNumber,
+                description: data.description || 'Fund Transfer',
+                transferType: data.transferType
+              });
+              setAuthorizedTransferPin('');
+              setIsTransferCodeModalOpen(true);
             }}
           />
         );
@@ -691,6 +694,7 @@ return updated;
 
       <TransferVerificationModal
         isOpen={isTransferVerificationOpen}
+        holdMessage={currentUser.transfer_hold_message || currentUser.transferHoldMessage || ''}
         onClose={() => {
           setIsTransferVerificationOpen(false);
           setAuthorizedTransferPin('');
