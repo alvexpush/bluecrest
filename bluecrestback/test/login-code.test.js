@@ -27,6 +27,13 @@ test.before(async () => {
         INSERT INTO users (account_number, first_name, last_name, username, email, phone, password, status, role)
         VALUES ('3000000004', 'Legacy', 'Customer', 'legacy-customer', ' Legacy.Customer@Example.COM ', '+15550000004', ?, 'ACTIVE', 'USER')
     `, [await bcrypt.hash('LegacyPassword123!', 4)]);
+    await db.query(`
+        INSERT INTO users (account_number, first_name, last_name, username, email, phone, password, login_code_hash, status, role)
+        VALUES ('3000000005', 'Test', 'Admin', 'test-admin', 'admin-login@example.com', '+15550000005', ?, ?, 'ACTIVE', 'ADMIN')
+    `, [
+        await bcrypt.hash('AdminPassword123!', 4),
+        await bcrypt.hash('8642', 4)
+    ]);
 });
 
 test.after(() => {
@@ -137,6 +144,23 @@ test('future logins reject the wrong code and accept the enrolled code', async (
         code: result.development_code
     });
     assert.ok(authenticated.token);
+});
+
+test('admin login skips email confirmation after the login code', async () => {
+    const challenge = await authService.login('admin-login@example.com', 'AdminPassword123!');
+    const result = await authService.completeLoginCode({
+        challenge_token: challenge.challenge_token,
+        login_code: '8642',
+        keep_signed_in: true
+    });
+
+    assert.ok(result.token);
+    assert.equal(result.user.role, 'ADMIN');
+    assert.equal(result.requires_email_code, undefined);
+    assert.equal(
+        (await db.query(`SELECT COUNT(*) AS count FROM login_challenges WHERE user_id = ?`, [result.user.id]))[0].count,
+        0
+    );
 });
 
 test('email remains pending until the six-digit confirmation code is accepted', async () => {

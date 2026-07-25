@@ -157,6 +157,13 @@ async function completeLoginCode(data) {
     await db.query(`DELETE FROM login_challenges WHERE id = ?`, [challenge.id]);
     if (challenge.purpose === 'REGISTRATION') return { enrolled: true };
 
+    if (String(user.role || '').toUpperCase() === 'ADMIN') {
+        return createAuthenticatedSession(
+            await userRepository.findUserById(user.id),
+            Boolean(data.keep_signed_in)
+        );
+    }
+
     const emailChallengeToken = await createLoginChallenge(
         user.id,
         data.keep_signed_in ? 'LOGIN_EMAIL_REMEMBER' : 'LOGIN_EMAIL',

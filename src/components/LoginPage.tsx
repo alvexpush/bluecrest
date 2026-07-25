@@ -311,6 +311,16 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message || data.error || 'Login code verification failed.');
       const result = data?.data || data;
+      if (result.token && result.user) {
+        if (result.user.force_password_change) {
+          setPendingLoginUser(result.user);
+          setPendingToken(result.token);
+          setStep(5);
+        } else {
+          onLogin(result.user, result.token, keepSignedIn);
+        }
+        return;
+      }
       setPreAuthToken(result.challenge_token);
       setMaskedLoginEmail(result.masked_email || email);
       setDevelopmentCode(result.development_code || '');
