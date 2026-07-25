@@ -695,6 +695,12 @@ return updated;
       <TransferVerificationModal
         isOpen={isTransferVerificationOpen}
         holdMessage={currentUser.transfer_hold_message || currentUser.transferHoldMessage || ''}
+        onContactSupport={() => {
+          setIsTransferVerificationOpen(false);
+          setAuthorizedTransferPin('');
+          setPendingTransfer(null);
+          setActiveTab('support');
+        }}
         onClose={() => {
           setIsTransferVerificationOpen(false);
           setAuthorizedTransferPin('');

@@ -271,11 +271,13 @@ export function TransferVerificationModal({
   isOpen,
   onClose,
   onVerified,
+  onContactSupport,
   holdMessage = ''
 }: {
   isOpen: boolean;
   onClose: () => void;
   onVerified: (token: string) => void | Promise<void>;
+  onContactSupport: () => void;
   holdMessage?: string;
 }) {
   const [code, setCode] = React.useState('');
@@ -335,10 +337,10 @@ export function TransferVerificationModal({
         <button type="button" onClick={onClose} disabled={loading} className="py-3 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">Cancel</button>
         <button disabled={loading} className="py-3 rounded-xl bg-[#003399] text-white text-xs font-bold">{loading ? 'Verifying…' : 'Verify Code'}</button>
       </div>
-      <a href="mailto:support@bluecrest.example?subject=Cross Border Insurance Code request"
-        className="w-full py-3 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-2">
+      <button type="button" onClick={onContactSupport}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-3 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#003399]">
         <LifeBuoy className="w-4 h-4" /> {noCode ? 'Obtain Your Insurance Code' : 'Need an Insurance Code?'}
-      </a>
+      </button>
     </form>
   </Modal>;
 }
