@@ -5,21 +5,44 @@ const db = require('../database/db');
 const notifications = require('../repositories/notification.repository');
 const ledgerService = require('../services/ledger.service');
 const BITCOIN_ADDRESS = String(process.env.BITCOIN_PAYMENT_ADDRESS || 'bc1qdxsym4k0rfne6cd0pn6233llkh5sy4fhj7p44l').trim();
+const DEPOSIT_METHODS = ['BITCOIN', 'GIFTCARD'];
+const MAX_EVIDENCE_IMAGES = 5;
+
+function validateEvidenceImages(images) {
+    if (!images.length) throw new Error('At least one proof image is required');
+    if (images.length > MAX_EVIDENCE_IMAGES) throw new Error(`Upload no more than ${MAX_EVIDENCE_IMAGES} proof images`);
+
+    for (const image of images) {
+        if (!image || typeof image.name !== 'string' || !/^data:image\/(?:png|jpe?g|webp);base64,/i.test(String(image.data || ''))) {
+            throw new Error('Each proof must be a valid PNG, JPG, or WebP image');
+        }
+        if (String(image.data).length > 4.1 * 1024 * 1024) {
+            throw new Error('Each proof image must be smaller than 3 MB');
+        }
+    }
+}
 
 async function depositRoutes(req, res, body) {
     try {
         if (req.url === '/api/v1/deposits/config' && req.method === 'GET') {
             if (!await requireAuth(req, res)) return true;
-            return successResponse(res, { bitcoin_address: BITCOIN_ADDRESS, network: 'Bitcoin (BTC)' }, 'Deposit configuration fetched');
+            return successResponse(res, {
+                bitcoin_address: BITCOIN_ADDRESS,
+                network: 'Bitcoin (BTC)',
+                supported_methods: DEPOSIT_METHODS
+            }, 'Deposit configuration fetched');
         }
         if (req.url === '/api/v1/deposits' && req.method === 'POST') {
             if (!await requireAuth(req, res)) return true;
             const method = String(body.method || '').toUpperCase();
             const amount = Number(body.amount);
             const images = Array.isArray(body.images) ? body.images : [];
-            if (method !== 'BITCOIN') throw new Error('Bitcoin is the only available deposit method');
+            const cardName = String(body.card_name || '').trim();
+            if (!DEPOSIT_METHODS.includes(method)) throw new Error('Choose Bitcoin or Gift Card as the deposit method');
             if (!Number.isFinite(amount) || amount <= 0) throw new Error('Enter a valid deposit amount');
-            if (!images.length) throw new Error('Bitcoin transaction receipt is required');
+            if (method === 'GIFTCARD' && !cardName) throw new Error('Select or enter the gift card type');
+            if (cardName.length > 80) throw new Error('Gift card type must be 80 characters or fewer');
+            validateEvidenceImages(images);
             let targetAccount = null;
             if (body.account_id) {
                 targetAccount = (await db.query(`
@@ -37,9 +60,10 @@ async function depositRoutes(req, res, body) {
             const sql = db.USE_POSTGRES
                 ? `INSERT INTO deposit_requests (user_id, account_id, method, amount, card_name, bitcoin_address, images_json) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`
                 : `INSERT INTO deposit_requests (user_id, account_id, method, amount, card_name, bitcoin_address, images_json) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-            const result = await db.query(sql, [req.user.id, targetAccount?.id || null, method, amount, body.card_name || null, method === 'BITCOIN' ? BITCOIN_ADDRESS : null, JSON.stringify(images)]);
+            const result = await db.query(sql, [req.user.id, targetAccount?.id || null, method, amount, method === 'GIFTCARD' ? cardName : null, method === 'BITCOIN' ? BITCOIN_ADDRESS : null, JSON.stringify(images)]);
             const deposit = db.USE_POSTGRES ? result[0] : (await db.query(`SELECT * FROM deposit_requests WHERE id = (SELECT MAX(id) FROM deposit_requests)`))[0];
-            await notifications.createNotification({ user_id: req.user.id, title: 'Deposit request received', message: `Your Bitcoin deposit to ${targetAccount?.account_kind === 'JOINT' ? 'the joint account' : 'your account'} is pending review.`, type: 'INFO', action_link: targetAccount?.account_kind === 'JOINT' ? '/joint-accounts' : '/deposit' });
+            const methodLabel = method === 'GIFTCARD' ? `${cardName} gift card` : 'Bitcoin';
+            await notifications.createNotification({ user_id: req.user.id, title: 'Deposit request received', message: `Your ${methodLabel} deposit to ${targetAccount?.account_kind === 'JOINT' ? 'the joint account' : 'your account'} is pending review.`, type: 'INFO', action_link: targetAccount?.account_kind === 'JOINT' ? '/joint-accounts' : '/deposit' });
             return successResponse(res, deposit, 'Deposit submitted', 201);
         }
         if (req.url === '/api/v1/deposits' && req.method === 'GET') {

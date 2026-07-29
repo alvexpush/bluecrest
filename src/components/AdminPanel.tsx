@@ -72,6 +72,14 @@ const createBatchTransactionRow = (): BatchTransactionRow => ({
 });
 
 const unwrapApiData = (payload: any) => payload?.data || payload || [];
+const parseDepositEvidence = (value: string | null | undefined) => {
+  try {
+    const evidence = JSON.parse(value || '[]');
+    return Array.isArray(evidence) ? evidence : [];
+  } catch {
+    return [];
+  }
+};
 
 export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPanelProps) {
   const [activeSubTab, setActiveSubTab] = useState<'users' | 'transfers' | 'loans' | 'cards' | 'deposits' | 'support' | 'security' | 'create-txn' | 'communications'>(() => new URLSearchParams(window.location.search).has('support') ? 'support' : 'users');
@@ -132,6 +140,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
   // KYC inspection modal state
   const [inspectKycUser, setInspectKycUser] = useState<any | null>(null);
+  const [inspectDeposit, setInspectDeposit] = useState<any | null>(null);
 
   // Per-user transaction inspection state
   const [transactionUser, setTransactionUser] = useState<any | null>(null);
@@ -914,11 +923,36 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
       {activeSubTab === 'deposits' && (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100"><h3 className="font-extrabold text-slate-900">Deposit verification</h3><p className="text-xs text-slate-400 mt-1">Cross-check gift cards and Bitcoin payment receipts before approval.</p></div>
-          {deposits.length === 0 ? <div className="p-12 text-center text-sm font-semibold text-slate-400">No deposit requests yet.</div> : <div className="overflow-x-auto"><table className="w-full text-left min-w-[900px]"><thead className="bg-slate-50 text-[9px] uppercase tracking-widest text-slate-400"><tr><th className="p-4">User</th><th className="p-4">Method</th><th className="p-4">Amount</th><th className="p-4">Evidence</th><th className="p-4">Status</th><th className="p-4">Review</th></tr></thead><tbody className="divide-y divide-slate-100">{deposits.map(deposit => {
-            let evidence: any[] = []; try { evidence = JSON.parse(deposit.images_json || '[]'); } catch { evidence = []; }
-            return <tr key={deposit.id}><td className="p-4"><p className="text-xs font-bold text-slate-800">{deposit.first_name} {deposit.last_name}</p><p className="text-[10px] text-slate-400">{deposit.email}</p></td><td className="p-4"><p className="text-xs font-bold">{deposit.method}</p><p className="text-[10px] text-slate-400 max-w-48 break-all">{deposit.card_name || deposit.bitcoin_address}</p><p className="text-[9px] font-bold text-[#003399] mt-1">To: {deposit.target_account_kind === 'JOINT' ? `Joint •••• ${String(deposit.target_account_number || '').slice(-4)}` : 'Personal account'}</p></td><td className="p-4 text-sm font-extrabold">${Number(deposit.amount).toLocaleString()}</td><td className="p-4"><div className="flex gap-2 flex-wrap">{evidence.map((image, index) => <a key={index} href={image.data} target="_blank" rel="noreferrer" title={image.name || 'Open evidence'}><img src={image.data} alt={image.name || 'Deposit evidence'} className="w-14 h-14 object-cover rounded-lg border border-slate-200" /></a>)}</div></td><td className="p-4"><span className={cn('text-[9px] font-bold px-2.5 py-1 rounded-full', deposit.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' : deposit.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600')}>{deposit.status}</span></td><td className="p-4">{deposit.status === 'PENDING' && <div className="flex gap-2"><button onClick={() => reviewDeposit(deposit.id, 'APPROVED')} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-bold">Approve</button><button onClick={() => reviewDeposit(deposit.id, 'REJECTED')} className="px-3 py-2 rounded-lg bg-rose-500 text-white text-[10px] font-bold">Reject</button></div>}</td></tr>;
-          })}</tbody></table></div>}
+          <div className="p-6 border-b border-slate-100">
+            <h3 className="font-extrabold text-slate-900">Deposit verification</h3>
+            <p className="text-xs text-slate-400 mt-1">Open each request and cross-check all gift card or Bitcoin evidence before approval.</p>
+          </div>
+          {deposits.length === 0 ? (
+            <div className="p-12 text-center text-sm font-semibold text-slate-400">No deposit requests yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[900px]">
+                <thead className="bg-slate-50 text-[9px] uppercase tracking-widest text-slate-400">
+                  <tr><th className="p-4">User</th><th className="p-4">Method</th><th className="p-4">Amount</th><th className="p-4">Evidence</th><th className="p-4">Status</th><th className="p-4">Review</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {deposits.map(deposit => {
+                    const evidence = parseDepositEvidence(deposit.images_json);
+                    return (
+                      <tr key={deposit.id}>
+                        <td className="p-4"><p className="text-xs font-bold text-slate-800">{deposit.first_name} {deposit.last_name}</p><p className="text-[10px] text-slate-400">{deposit.email}</p></td>
+                        <td className="p-4"><p className="text-xs font-bold">{deposit.method === 'GIFTCARD' ? 'Gift Card' : 'Bitcoin'}</p><p className="text-[10px] text-slate-400 max-w-48 break-all">{deposit.card_name || deposit.bitcoin_address}</p><p className="text-[9px] font-bold text-[#003399] mt-1">To: {deposit.target_account_kind === 'JOINT' ? `Joint •••• ${String(deposit.target_account_number || '').slice(-4)}` : 'Personal account'}</p></td>
+                        <td className="p-4 text-sm font-extrabold">{formatCurrency(Number(deposit.amount))}</td>
+                        <td className="p-4"><div className="flex gap-2 items-center"><div className="flex -space-x-2">{evidence.slice(0, 3).map((image, index) => <img key={index} src={image.data} alt="" className="w-10 h-10 object-cover rounded-lg border-2 border-white" />)}</div><span className="text-[10px] font-bold text-slate-500">{evidence.length} image{evidence.length === 1 ? '' : 's'}</span></div></td>
+                        <td className="p-4"><span className={cn('text-[9px] font-bold px-2.5 py-1 rounded-full', deposit.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' : deposit.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600')}>{deposit.status}</span></td>
+                        <td className="p-4"><button onClick={() => setInspectDeposit(deposit)} className="px-3 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1.5"><Eye className="w-3 h-3" />Inspect</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -2082,6 +2116,63 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
           </div>
         </div>
       )}
+
+      {/* DEPOSIT EVIDENCE INSPECTION MODAL */}
+      {inspectDeposit && (() => {
+        const evidence = parseDepositEvidence(inspectDeposit.images_json);
+        const methodName = inspectDeposit.method === 'GIFTCARD' ? 'Gift Card' : 'Bitcoin';
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
+              <div className="px-8 py-6 bg-slate-900 text-white flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Deposit Verification Dossier</p>
+                  <h4 className="text-lg font-extrabold mt-0.5">{methodName} · {formatCurrency(Number(inspectDeposit.amount))}</h4>
+                </div>
+                <button onClick={() => setInspectDeposit(null)} className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 grid sm:grid-cols-2 gap-4">
+                  <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Submitted by</span><span className="text-sm font-extrabold text-slate-800 mt-1 block">{inspectDeposit.first_name} {inspectDeposit.last_name}</span><span className="text-[10px] text-slate-500">{inspectDeposit.email} · {inspectDeposit.account_number}</span></div>
+                  <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Deposit destination</span><span className="text-sm font-extrabold text-slate-800 mt-1 block">{inspectDeposit.target_account_kind === 'JOINT' ? `Joint account •••• ${String(inspectDeposit.target_account_number || '').slice(-4)}` : 'Personal account'}</span></div>
+                  <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">{inspectDeposit.method === 'GIFTCARD' ? 'Gift card type' : 'Receiving address'}</span><span className="text-xs font-bold text-slate-700 mt-1 block break-all">{inspectDeposit.card_name || inspectDeposit.bitcoin_address}</span></div>
+                  <div><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Current status</span><span className={cn('text-[10px] font-bold px-2.5 py-1 rounded-full mt-1 inline-block', inspectDeposit.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : inspectDeposit.status === 'REJECTED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700')}>{inspectDeposit.status}</span></div>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Submitted evidence</span><span className="text-[10px] font-bold text-slate-500">{evidence.length} image{evidence.length === 1 ? '' : 's'}</span></div>
+                  {evidence.length ? (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {evidence.map((image, index) => (
+                        <a key={index} href={image.data} target="_blank" rel="noreferrer" className="group rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
+                          <img src={image.data} alt={image.name || `Deposit evidence ${index + 1}`} className="w-full h-56 object-contain group-hover:scale-[1.01] transition-transform" />
+                          <div className="px-4 py-3 bg-white flex items-center justify-between"><span className="text-[10px] font-bold text-slate-600 truncate">{image.name || `Evidence ${index + 1}`}</span><span className="text-[9px] font-bold text-[#003399]">Open full size</span></div>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="h-28 bg-slate-50 border border-dashed border-slate-200 rounded-3xl flex items-center justify-center text-slate-400 text-xs font-medium">No evidence uploaded</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
+                {inspectDeposit.status === 'PENDING' ? (
+                  <>
+                    <button onClick={async () => { await reviewDeposit(inspectDeposit.id, 'REJECTED'); setInspectDeposit(null); }} className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold">Reject deposit</button>
+                    <button onClick={async () => { await reviewDeposit(inspectDeposit.id, 'APPROVED'); setInspectDeposit(null); }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">Confirm & credit account</button>
+                  </>
+                ) : (
+                  <button onClick={() => setInspectDeposit(null)} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold">Close review</button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* KYC DOCUMENTS INSPECTION MODAL */}
       {inspectKycUser && (

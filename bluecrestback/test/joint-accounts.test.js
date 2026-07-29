@@ -171,7 +171,7 @@ test('either owner can move personal funds into the same joint balance', async (
     assert.equal(Number((await db.query(`SELECT balance FROM users WHERE id = ?`, [coOwner.id]))[0].balance), 375);
 });
 
-test('deposit API exposes Bitcoin instructions and rejects removed gift cards', async () => {
+test('deposit API exposes both methods and accepts gift cards with image evidence', async () => {
     await db.query(`INSERT INTO sessions (user_id, token, expires_at) VALUES (?, 'bitcoin-deposit-user', ?)`, [coOwner.id, new Date(Date.now() + 60_000).toISOString()]);
     const response = { status: 0, payload: null, writeHead(status) { this.status = status; }, end(body) { this.payload = JSON.parse(body); } };
     const headers = { authorization: 'Bearer bitcoin-deposit-user' };
@@ -180,14 +180,17 @@ test('deposit API exposes Bitcoin instructions and rejects removed gift cards', 
     assert.equal(response.status, 200);
     assert.ok(response.payload.data.bitcoin_address);
     assert.equal(response.payload.data.network, 'Bitcoin (BTC)');
+    assert.deepEqual(response.payload.data.supported_methods, ['BITCOIN', 'GIFTCARD']);
 
     await depositRoutes(
         { method: 'POST', url: '/api/v1/deposits', headers },
         response,
-        { method: 'GIFTCARD', amount: 50, card_name: 'Removed', images: [{ name: 'receipt.png', data: 'data:image/png;base64,AA==' }] }
+        { method: 'GIFTCARD', amount: 50, card_name: 'Apple', images: [{ name: 'front.png', data: 'data:image/png;base64,AA==' }, { name: 'back.jpg', data: 'data:image/jpeg;base64,AA==' }] }
     );
-    assert.equal(response.status, 400);
-    assert.match(response.payload.error.message, /Bitcoin is the only available deposit method/);
+    assert.equal(response.status, 201);
+    assert.equal(response.payload.data.method, 'GIFTCARD');
+    assert.equal(response.payload.data.card_name, 'Apple');
+    assert.equal(JSON.parse(response.payload.data.images_json).length, 2);
 });
 
 test('an approved deposit request credits the selected joint account exactly once', async () => {
