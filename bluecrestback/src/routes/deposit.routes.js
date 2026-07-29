@@ -72,8 +72,35 @@ async function depositRoutes(req, res, body) {
         }
         if (req.url === '/api/v1/admin/deposits' && req.method === 'GET') {
             if (!await requireAdmin(req, res)) return true;
-            const rows = await db.query(`SELECT deposit_requests.*, users.first_name, users.last_name, users.email, users.account_number, accounts.account_number AS target_account_number, accounts.account_kind AS target_account_kind FROM deposit_requests JOIN users ON users.id = deposit_requests.user_id LEFT JOIN accounts ON accounts.id = deposit_requests.account_id ORDER BY deposit_requests.id DESC`);
+            const rows = await db.query(`
+                SELECT deposit_requests.id, deposit_requests.user_id, deposit_requests.account_id,
+                       deposit_requests.method, deposit_requests.amount, deposit_requests.card_name,
+                       deposit_requests.bitcoin_address, deposit_requests.status,
+                       deposit_requests.created_at, deposit_requests.updated_at,
+                       users.first_name, users.last_name, users.email, users.account_number,
+                       accounts.account_number AS target_account_number,
+                       accounts.account_kind AS target_account_kind
+                FROM deposit_requests
+                JOIN users ON users.id = deposit_requests.user_id
+                LEFT JOIN accounts ON accounts.id = deposit_requests.account_id
+                ORDER BY deposit_requests.id DESC
+            `);
             return successResponse(res, rows, 'Deposit requests fetched');
+        }
+        if (/^\/api\/v1\/admin\/deposits\/\d+$/.test(req.url) && req.method === 'GET') {
+            if (!await requireAdmin(req, res)) return true;
+            const id = Number(req.url.split('/').pop());
+            const row = (await db.query(`
+                SELECT deposit_requests.*, users.first_name, users.last_name, users.email,
+                       users.account_number, accounts.account_number AS target_account_number,
+                       accounts.account_kind AS target_account_kind
+                FROM deposit_requests
+                JOIN users ON users.id = deposit_requests.user_id
+                LEFT JOIN accounts ON accounts.id = deposit_requests.account_id
+                WHERE deposit_requests.id = ?
+            `, [id]))[0];
+            if (!row) throw new Error('Deposit request not found');
+            return successResponse(res, row, 'Deposit evidence fetched');
         }
         if (/^\/api\/v1\/admin\/deposits\/\d+$/.test(req.url) && req.method === 'PATCH') {
             if (!await requireAdmin(req, res)) return true;

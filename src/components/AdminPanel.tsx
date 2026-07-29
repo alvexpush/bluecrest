@@ -50,6 +50,15 @@ const ADMIN_COUNTRY_CURRENCY_LIST = [
 ];
 
 type AdminTxnType = 'CREDIT' | 'DEBIT';
+type AdminTab = 'users' | 'transfers' | 'loans' | 'cards' | 'deposits' | 'support' | 'security' | 'create-txn' | 'communications';
+
+interface AdminStats {
+  total_users: number;
+  total_balance: number;
+  funded_financing: number;
+  total_funded: number;
+  pending_transfers: number;
+}
 
 interface BatchTransactionRow {
   id: string;
@@ -82,13 +91,19 @@ const parseDepositEvidence = (value: string | null | undefined) => {
 };
 
 export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'users' | 'transfers' | 'loans' | 'cards' | 'deposits' | 'support' | 'security' | 'create-txn' | 'communications'>(() => new URLSearchParams(window.location.search).has('support') ? 'support' : 'users');
+  const [activeSubTab, setActiveSubTab] = useState<AdminTab>(() => new URLSearchParams(window.location.search).has('support') ? 'support' : 'users');
   const [users, setUsers] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]);
   const [cards, setCards] = useState<any[]>([]);
   const [deposits, setDeposits] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [stats, setStats] = useState<AdminStats>({
+    total_users: 0,
+    total_balance: 0,
+    funded_financing: 0,
+    total_funded: 0,
+    pending_transfers: 0
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [responseMsg, setResponseMsg] = useState('');
@@ -152,41 +167,51 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   const formatCurrency = formatUserCurrency || ((amt: number) => `$${amt.toLocaleString()}`);
   const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
 
+  const requestAdminData = async (path: string) => {
+    const res = await fetch(path, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || data.error || `Failed to fetch ${path}`);
+    return unwrapApiData(data);
+  };
+
+  const fetchStats = async () => {
+    const data = await requestAdminData('/api/v1/admin/stats');
+    setStats({
+      total_users: Number(data.total_users || 0),
+      total_balance: Number(data.total_balance || 0),
+      funded_financing: Number(data.funded_financing || 0),
+      total_funded: Number(data.total_funded || 0),
+      pending_transfers: Number(data.pending_transfers || 0)
+    });
+  };
+
+  const fetchSection = async (tab: AdminTab) => {
+    if (tab === 'users' || tab === 'security' || tab === 'create-txn' || tab === 'communications') {
+      const data = await requestAdminData('/api/v1/users');
+      setUsers(Array.isArray(data) ? data : []);
+    } else if (tab === 'transfers') {
+      const data = await requestAdminData('/api/v1/transfers');
+      setTransfers(Array.isArray(data) ? data : []);
+    } else if (tab === 'loans') {
+      const data = await requestAdminData('/api/v1/loans');
+      setLoans(Array.isArray(data) ? data : []);
+    } else if (tab === 'cards') {
+      const data = await requestAdminData('/api/v1/cards');
+      setCards(Array.isArray(data) ? data : []);
+    } else if (tab === 'deposits') {
+      const data = await requestAdminData('/api/v1/admin/deposits');
+      setDeposits(Array.isArray(data) ? data : []);
+    }
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
     setResponseMsg('');
     try {
-      const request = async (path: string) => {
-        const res = await fetch(path, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error?.message || data.error || `Failed to fetch ${path}`);
-        }
-
-        return unwrapApiData(data);
-      };
-
-      const [usersData, transfersData, loansData, cardsData, depositsData, transactionsData] = await Promise.all([
-        request('/api/v1/users'),
-        request('/api/v1/transfers'),
-        request('/api/v1/loans'),
-        request('/api/v1/cards'),
-        request('/api/v1/admin/deposits'),
-        request('/api/v1/transactions')
-      ]);
-
-      setUsers(Array.isArray(usersData) ? usersData : []);
-      setTransfers(Array.isArray(transfersData) ? transfersData : []);
-      setLoans(Array.isArray(loansData) ? loansData : []);
-      setCards(Array.isArray(cardsData) ? cardsData : []);
-      setDeposits(Array.isArray(depositsData) ? depositsData : []);
-      setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
+      await Promise.all([fetchStats(), fetchSection(activeSubTab)]);
     } catch (e) {
       console.error(e);
-      setResponseMsg(e instanceof Error ? e.message : 'Failed to fetch admin stats.');
+      setResponseMsg(e instanceof Error ? e.message : 'Failed to load admin data.');
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +219,21 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [activeSubTab]);
+
+  const handleInspectDeposit = async (deposit: any) => {
+    setInspectDeposit({ ...deposit, isLoadingEvidence: true });
+    try {
+      const detail = await requestAdminData(`/api/v1/admin/deposits/${deposit.id}`);
+      setInspectDeposit({ ...detail, isLoadingEvidence: false });
+    } catch (error) {
+      setInspectDeposit({
+        ...deposit,
+        isLoadingEvidence: false,
+        evidenceError: error instanceof Error ? error.message : 'Failed to load deposit evidence.'
+      });
+    }
+  };
 
   const reviewDeposit = async (id: number, status: 'APPROVED' | 'REJECTED') => {
     try {
@@ -786,15 +825,11 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   };
 
   // Computations for Admin Statistics Cards
-  const totalUsers = users.length;
-  const totalBalances = users.reduce((sum, u) => sum + (Number(u.balance) || 0), 0);
-  const totalFundedLoans = loans
-    .filter(l => l.status === 'DISBURSED')
-    .reduce((sum, l) => sum + (Number(l.requested_amount) || 0), 0);
-  const pendingAuditsCount = transfers.filter(t => t.status === 'PENDING').length;
-  const totalFunded = transactions
-    .filter(t => t.type === 'CREDIT' || t.type === 'credit')
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalUsers = stats.total_users;
+  const totalBalances = stats.total_balance;
+  const totalFundedLoans = stats.funded_financing;
+  const pendingAuditsCount = stats.pending_transfers;
+  const totalFunded = stats.total_funded;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in font-sans">
@@ -896,7 +931,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as any)}
+            onClick={() => setActiveSubTab(tab.id as AdminTab)}
             className={cn(
               "flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all",
               activeSubTab === tab.id
@@ -937,15 +972,14 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {deposits.map(deposit => {
-                    const evidence = parseDepositEvidence(deposit.images_json);
                     return (
                       <tr key={deposit.id}>
                         <td className="p-4"><p className="text-xs font-bold text-slate-800">{deposit.first_name} {deposit.last_name}</p><p className="text-[10px] text-slate-400">{deposit.email}</p></td>
                         <td className="p-4"><p className="text-xs font-bold">{deposit.method === 'GIFTCARD' ? 'Gift Card' : 'Bitcoin'}</p><p className="text-[10px] text-slate-400 max-w-48 break-all">{deposit.card_name || deposit.bitcoin_address}</p><p className="text-[9px] font-bold text-[#003399] mt-1">To: {deposit.target_account_kind === 'JOINT' ? `Joint •••• ${String(deposit.target_account_number || '').slice(-4)}` : 'Personal account'}</p></td>
                         <td className="p-4 text-sm font-extrabold">{formatCurrency(Number(deposit.amount))}</td>
-                        <td className="p-4"><div className="flex gap-2 items-center"><div className="flex -space-x-2">{evidence.slice(0, 3).map((image, index) => <img key={index} src={image.data} alt="" className="w-10 h-10 object-cover rounded-lg border-2 border-white" />)}</div><span className="text-[10px] font-bold text-slate-500">{evidence.length} image{evidence.length === 1 ? '' : 's'}</span></div></td>
+                        <td className="p-4"><span className="text-[10px] font-bold text-[#003399]">Load on inspection</span></td>
                         <td className="p-4"><span className={cn('text-[9px] font-bold px-2.5 py-1 rounded-full', deposit.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600' : deposit.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600')}>{deposit.status}</span></td>
-                        <td className="p-4"><button onClick={() => setInspectDeposit(deposit)} className="px-3 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1.5"><Eye className="w-3 h-3" />Inspect</button></td>
+                        <td className="p-4"><button onClick={() => handleInspectDeposit(deposit)} className="px-3 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-bold flex items-center gap-1.5"><Eye className="w-3 h-3" />Inspect</button></td>
                       </tr>
                     );
                   })}
@@ -2144,7 +2178,14 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
                 <div>
                   <div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Submitted evidence</span><span className="text-[10px] font-bold text-slate-500">{evidence.length} image{evidence.length === 1 ? '' : 's'}</span></div>
-                  {evidence.length ? (
+                  {inspectDeposit.isLoadingEvidence ? (
+                    <div className="h-40 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center justify-center text-slate-400">
+                      <RefreshCw className="w-6 h-6 animate-spin mb-3 text-[#003399]" />
+                      <span className="text-xs font-bold">Loading evidence only when requested…</span>
+                    </div>
+                  ) : inspectDeposit.evidenceError ? (
+                    <div className="p-5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-sm font-semibold">{inspectDeposit.evidenceError}</div>
+                  ) : evidence.length ? (
                     <div className="grid sm:grid-cols-2 gap-4">
                       {evidence.map((image, index) => (
                         <a key={index} href={image.data} target="_blank" rel="noreferrer" className="group rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
@@ -2160,7 +2201,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
               </div>
 
               <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
-                {inspectDeposit.status === 'PENDING' ? (
+                {inspectDeposit.status === 'PENDING' && !inspectDeposit.isLoadingEvidence && !inspectDeposit.evidenceError ? (
                   <>
                     <button onClick={async () => { await reviewDeposit(inspectDeposit.id, 'REJECTED'); setInspectDeposit(null); }} className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold">Reject deposit</button>
                     <button onClick={async () => { await reviewDeposit(inspectDeposit.id, 'APPROVED'); setInspectDeposit(null); }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">Confirm & credit account</button>
