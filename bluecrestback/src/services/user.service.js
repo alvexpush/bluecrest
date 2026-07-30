@@ -368,6 +368,7 @@ async function updateUser(userId, data) {
         address: data.address !== undefined ? data.address : existing.address,
         government_id_number: data.government_id_number !== undefined ? data.government_id_number : existing.government_id_number,
         preferred_currency: data.preferred_currency !== undefined ? data.preferred_currency : existing.preferred_currency,
+        preferred_language: data.preferred_language !== undefined ? data.preferred_language : existing.preferred_language,
         balance: existing.balance,
         savings_balance: data.savings_balance !== undefined
             ? Math.max(0, Number(data.savings_balance) || 0)

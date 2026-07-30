@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export type LanguageCode = 'en' | 'ro' | 'it' | 'ar' | 'fr' | 'es' | 'de';
+export type LanguageCode = 'en' | 'ro' | 'it' | 'ar' | 'fr' | 'es' | 'de' | 'ko';
 
 export interface Language {
   code: LanguageCode;
@@ -9,8 +9,72 @@ export interface Language {
   direction: 'ltr' | 'rtl';
 }
 
+export function normalizeLanguageCode(value?: string | null): LanguageCode | null {
+  const normalized = (value || '').trim().toLowerCase();
+  if (normalized in TRANSLATIONS) return normalized as LanguageCode;
+
+  const shortCode = normalized.split(/[-_]/)[0];
+  if (shortCode in TRANSLATIONS) return shortCode as LanguageCode;
+
+  return null;
+}
+
+export function getLanguageByCode(code?: string | null): Language | undefined {
+  return LANGUAGES.find((language) => language.code === normalizeLanguageCode(code));
+}
+
+export async function detectLanguagePreference(): Promise<LanguageCode> {
+  if (typeof window === 'undefined') return 'en';
+
+  const stored = normalizeLanguageCode(window.localStorage.getItem('app_lang'));
+  if (stored) return stored;
+
+  const candidates = [window.navigator.language, ...(window.navigator.languages || [])];
+  for (const candidate of candidates) {
+    const detected = normalizeLanguageCode(candidate);
+    if (detected) return detected;
+  }
+
+  try {
+    const response = await fetch('https://ipapi.co/json/', {
+      headers: { Accept: 'application/json' }
+    });
+
+    if (response.ok) {
+      const data = await response.json() as { country_code?: string; country?: string };
+      const countryCode = String(data.country_code || data.country || '').toUpperCase();
+      const countryToLanguage: Record<string, LanguageCode> = {
+        KR: 'ko',
+        FR: 'fr',
+        DE: 'de',
+        IT: 'it',
+        RO: 'ro',
+        ES: 'es',
+        SA: 'ar',
+        AE: 'ar',
+        EG: 'ar',
+        JO: 'ar',
+        LB: 'ar',
+        SY: 'ar',
+        MA: 'ar',
+        DZ: 'ar',
+        TN: 'ar'
+      };
+
+      if (countryToLanguage[countryCode]) {
+        return countryToLanguage[countryCode];
+      }
+    }
+  } catch {
+    // Fall back to English if the lookup fails.
+  }
+
+  return 'en';
+}
+
 export const LANGUAGES: Language[] = [
   { code: 'en', name: 'English', flag: '🇬🇧', direction: 'ltr' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷', direction: 'ltr' },
   { code: 'fr', name: 'Français', flag: '🇫🇷', direction: 'ltr' },
   { code: 'ar', name: 'العربية', flag: '🇸🇦', direction: 'rtl' },
   { code: 'es', name: 'Español', flag: '🇪🇸', direction: 'ltr' },
@@ -275,6 +339,69 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     recipientBank: "البنك المرسل إليه",
     recipientAccount: "رقم حساب المستلم",
     transferPin: "رمز أمان التحويل"
+  },
+  ko: {
+    brand: "Blue Crest",
+    tagline: "국제",
+    dashboard: "대시보드",
+    accountDetails: "계좌 상세정보",
+    accountSummary: "계좌 요약",
+    stocksTrading: "주식 및 거래",
+    localTransfer: "국내 송금",
+    internationalTransfer: "국제 송금",
+    transferHistory: "송금 내역",
+    atmCard: "ATM 카드",
+    verifyIdentity: "신원 확인 (KYC)",
+    securityPin: "보안 PIN",
+    applyLoan: "대출 신청",
+    loansHistory: "내 대출 내역",
+    logout: "로그아웃",
+    welcome: "다시 오신 것을 환영합니다",
+    welcomeDesc: "안전하게 프리미엄 금융 포털에 접속하세요.",
+
+    signIn: "로그인",
+    verifyIdentityDesc: "동적 잔액을 불러오기 위해 신원을 확인하세요",
+    emailAddress: "이메일 주소",
+    password: "보안 비밀번호",
+    continue: "계속",
+    verifyAccount: "계좌 확인",
+    orUseAnotherEmail: "다른 이메일 사용",
+    enterPin: "비밀번호 확인",
+    verifyPinDesc: "로그인하려면 비밀번호를 확인해 주세요",
+    unlockPortal: "확인 후 로그인",
+    noAccount: "계정이 없으신가요?",
+    createAccount: "계정 만들기",
+
+    createAccountTitle: "계정 만들기",
+    signUpDesc: "여러 브라우저에서 동적으로 등록을 관리하세요",
+    firstName: "이름",
+    lastName: "성",
+    username: "사용자 이름",
+    phoneNumber: "전화번호",
+    country: "국가",
+    preferredCurrency: "선호 통화",
+    hasAccount: "이미 계정이 있으신가요?",
+    signInInstead: "로그인으로 돌아가기",
+
+    balance: "현재 잔액",
+    savingsGoal: "저축 목표",
+    kycStatusLabel: "KYC 인증 상태",
+    notSubmitted: "미제출",
+    verified: "인증됨",
+    pending: "대기 중",
+    rejected: "거절됨",
+    applyNow: "지금 신청",
+    amount: "금액",
+    purpose: "목적",
+    repaymentMonths: "상환 개월 수",
+    fee: "개시 수수료",
+    status: "상태",
+    date: "날짜",
+    description: "설명",
+    recipientName: "수취인 이름",
+    recipientBank: "수취인 은행",
+    recipientAccount: "수취인 계좌번호",
+    transferPin: "송금 PIN"
   },
   fr: {
     brand: "Blue Crest",

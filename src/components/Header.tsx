@@ -1,14 +1,18 @@
 import { Bell, Menu } from 'lucide-react';
 import { USER_DATA } from '@/src/constants';
+import { getTranslation, LanguageCode } from '../lib/translations';
 
 interface HeaderProps {
   onMenuClick?: () => void;
   onNotificationsClick?: () => void;
   user?: any;
+  lang?: LanguageCode;
 }
 
-export default function Header({ onMenuClick, onNotificationsClick, user }: HeaderProps) {
+export default function Header({ onMenuClick, onNotificationsClick, user, lang = 'en' }: HeaderProps) {
   const activeUser = user || USER_DATA;
+  const t = (key: string, fallback = '') => getTranslation(lang, key, fallback);
+
   return (
     <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30">
       <div className="flex items-center gap-4 flex-1">
@@ -19,10 +23,10 @@ export default function Header({ onMenuClick, onNotificationsClick, user }: Head
           <Menu className="w-6 h-6" />
         </button>
         
-        <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
+        <h1 className="text-lg font-semibold text-slate-900">{t('dashboard', 'Dashboard')}</h1>
         <span className="text-slate-300 hidden sm:block">|</span>
         <span className="text-slate-500 text-sm hidden sm:block font-medium">
-          Welcome back, {activeUser.firstName || activeUser.first_name || activeUser.surname} {activeUser.lastName || activeUser.last_name}
+          {t('welcome', 'Welcome back')}, {activeUser.firstName || activeUser.first_name || activeUser.surname} {activeUser.lastName || activeUser.last_name}
         </span>
       </div>
 

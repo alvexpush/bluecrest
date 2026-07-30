@@ -26,7 +26,7 @@ import NotificationAlert from './components/NotificationAlert';
 import SupportWidget from './components/SupportWidget';
 import JointAccountsPanel from './components/JointAccountsPanel';
 import EmailVerificationBanner from './components/EmailVerificationBanner';
-import { LanguageCode } from './lib/translations';
+import { detectLanguagePreference, getLanguageByCode, LanguageCode, normalizeLanguageCode } from './lib/translations';
 import { RestrictedModal, TransferSuccessModal, TransferCodeModal, TransferVerificationModal } from './components/Modals';
 import { motion, AnimatePresence } from 'motion/react';
 import { USER_DATA, TRANSACTIONS } from './constants';
@@ -104,13 +104,64 @@ useEffect(() => {
     return !!getAuthToken();
   });
 
-  const [lang, setLang] = useState<LanguageCode>(() => {
-    return (localStorage.getItem('app_lang') as LanguageCode) || 'en';
-  });
+  const [lang, setLang] = useState<LanguageCode>('en');
 
-  const handleLanguageChange = (code: LanguageCode) => {
+  useEffect(() => {
+    let ignore = false;
+
+    const initializeLanguage = async () => {
+      const saved = normalizeLanguageCode(localStorage.getItem('app_lang'));
+      const detected = saved || await detectLanguagePreference();
+
+      if (ignore) return;
+
+      setLang(detected);
+      localStorage.setItem('app_lang', detected);
+
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = detected;
+        document.documentElement.dir = getLanguageByCode(detected)?.direction || 'ltr';
+      }
+    };
+
+    initializeLanguage();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = getLanguageByCode(lang)?.direction || 'ltr';
+    }
+  }, [lang]);
+
+  const handleLanguageChange = async (code: LanguageCode) => {
     setLang(code);
     localStorage.setItem('app_lang', code);
+
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = code;
+      document.documentElement.dir = getLanguageByCode(code)?.direction || 'ltr';
+    }
+
+    try {
+      const token = getAuthToken();
+      if (token) {
+        await fetch('/api/v1/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ preferred_language: code })
+        });
+      }
+    } catch (error) {
+      console.error('Failed to persist language preference', error);
+    }
   };
 
   const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).has('support') ? 'admin' : 'dashboard');
@@ -428,6 +479,7 @@ const mappedUser = {
   firstName: cleanUserProfile.first_name || cleanUserProfile.firstName,
   lastName: cleanUserProfile.last_name || cleanUserProfile.lastName,
   preferredCurrency: cleanUserProfile.preferred_currency || cleanUserProfile.preferredCurrency,
+  preferredLanguage: cleanUserProfile.preferred_language || cleanUserProfile.preferredLanguage || 'en',
   transferPin: cleanUserProfile.transfer_pin_set
     ? 'SET'
     : (cleanUserProfile.transferPin || null),
@@ -446,6 +498,10 @@ console.log('auth_user size:', userString.length);
 console.log('mappedUser:', mappedUser);
 
 storeAuthSession(token, userString, keepSignedIn);
+
+const preferredLanguage = normalizeLanguageCode(mappedUser.preferredLanguage || mappedUser.preferred_language) || 'en';
+setLang(preferredLanguage);
+localStorage.setItem('app_lang', preferredLanguage);
 
 setCurrentUser(mappedUser);
 setBalance(mappedUser.balance);
@@ -641,7 +697,7 @@ return updated;
       />
 
       <main className="flex-1 lg:ml-64 flex flex-col min-h-screen">
-        <Header onMenuClick={() => setIsSidebarOpen(true)} onNotificationsClick={() => setActiveTab('notifications')} user={currentUser} />
+        <Header onMenuClick={() => setIsSidebarOpen(true)} onNotificationsClick={() => setActiveTab('notifications')} user={currentUser} lang={lang} />
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto">
           {String(currentUser.role || '').toUpperCase() !== 'ADMIN' && (
