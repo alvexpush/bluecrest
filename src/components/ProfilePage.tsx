@@ -430,14 +430,14 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
                 onClick={() => setIsEditing(false)}
                 className="px-5 py-3 text-xs font-bold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
               >
-                Cancel
+                {t('cancelEditButton', 'Cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
                 className="px-6 py-3 text-xs font-bold rounded-xl bg-[#003399] text-white hover:bg-blue-800 transition-all shadow-md shadow-blue-900/10 flex items-center justify-center gap-2"
               >
-                {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Save Changes'}
+                {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t('saveChangesButton', 'Save Changes')}
               </button>
             </div>
           </form>
@@ -473,13 +473,13 @@ export default function ProfilePage({ currentUser, onProfileUpdated, lang = 'en'
       <JointAccountsPanel currentUser={currentUser} onBalancesChanged={onProfileUpdated} />
 
       <form onSubmit={handlePasswordChange} className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-slate-50 space-y-5">
-        <div><h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-[#003399]" /> Change password</h3><p className="text-xs text-slate-400 mt-1">Use at least eight characters and keep this password unique.</p></div>
+        <div><h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2"><Lock className="w-5 h-5 text-[#003399]" /> {t('changePasswordTitle', 'Change password')}</h3><p className="text-xs text-slate-400 mt-1">{t('changePasswordHint', 'Use at least eight characters and keep this password unique.')}</p></div>
         <div className="grid md:grid-cols-3 gap-3">
-          <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="field-control" placeholder="Current password" required />
-          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder="New password" minLength={8} required />
-          <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder="Confirm new password" minLength={8} required />
+          <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="field-control" placeholder={t('currentPasswordPlaceholder', 'Current password')} required />
+          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder={t('newPasswordPlaceholder', 'New password')} minLength={8} required />
+          <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder={t('confirmNewPasswordPlaceholder', 'Confirm new password')} minLength={8} required />
         </div>
-        <button disabled={isLoading} className="px-6 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold">{isLoading ? 'Updating…' : 'Update password'}</button>
+        <button disabled={isLoading} className="px-6 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold">{isLoading ? 'Updating…' : t('updatePasswordButton', 'Update password')}</button>
       </form>
     </div>
   );

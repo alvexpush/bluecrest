@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, CreditCard, FileText, Send, User } from 'lucide-react';
+import { getTranslation, LanguageCode } from '../lib/translations';
 
 interface TransferSubmitData {
   recipientName: string;
@@ -15,9 +16,10 @@ interface TransferPageProps {
   availableBalance: number;
   currencySymbol?: string;
   formatUserCurrency?: (amount: number) => string;
+  lang?: LanguageCode;
 }
 
-export default function TransferPage({ onTransferSubmit, availableBalance, currencySymbol = '$', formatUserCurrency }: TransferPageProps) {
+export default function TransferPage({ onTransferSubmit, availableBalance, currencySymbol = '$', formatUserCurrency, lang = 'en' }: TransferPageProps) {
   const [recipientName, setRecipientName] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -27,6 +29,8 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
   const [lookupComplete, setLookupComplete] = useState(false);
   const [lookupError, setLookupError] = useState('');
   const [resolvedRecipientName, setResolvedRecipientName] = useState('');
+
+  const t = (key: string, fallback: string = '') => getTranslation(lang, key, fallback);
 
   useEffect(() => {
     const normalizedAccount = accountNumber.trim();
@@ -50,10 +54,10 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
           setRecipientName('');
           setBankName('');
         } else if (response.status !== 404) {
-          setLookupError('We could not verify this account. Please try again.');
+          setLookupError(t('couldNotVerifyAccount', 'We could not verify this account. Please try again.'));
         }
       } catch {
-        setLookupError('We could not verify this account. Please try again.');
+        setLookupError(t('couldNotVerifyAccount', 'We could not verify this account. Please try again.'));
       } finally {
         setLookupLoading(false);
         setLookupComplete(true);
@@ -76,7 +80,7 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
       bankName: isInternal ? 'Blue Crest Bank' : bankName.trim(),
       accountNumber: accountNumber.trim(),
       amount: Number.parseFloat(amount) || 0,
-      description: description.trim() || 'Bank Transfer',
+      description: description.trim() || t('transferPageTitle', 'Bank Transfer'),
       transferType: isInternal ? 'INTERNAL' : 'EXTERNAL'
     });
 
@@ -95,20 +99,20 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
       <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-sm border border-slate-100">
         <div className="mb-10">
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Send className="w-5 h-5 text-[#003399]" /> Bank Transfer
+            <Send className="w-5 h-5 text-[#003399]" /> {t('transferPageTitle', 'Bank Transfer')}
           </h2>
-          <p className="mt-2 text-sm text-slate-500">Send money to a Blue Crest account or any other bank.</p>
+          <p className="mt-2 text-sm text-slate-500">{t('transferPageSubtitle', 'Send money to a Blue Crest account or any other bank.')}</p>
         </div>
 
         <form className="space-y-8" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2 md:col-span-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account Number</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('accountNumberLabel', 'Account Number')}</label>
               <div className="relative">
                 <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                 <input type="text" value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/[^\w-]/g, ''))} minLength={4} required className="w-full h-14 bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-100 rounded-2xl pl-12 pr-4 text-sm font-semibold outline-none transition-all" />
               </div>
-              {lookupLoading && <p className="text-xs font-semibold text-slate-400 ml-1">Checking account…</p>}
+              {lookupLoading && <p className="text-xs font-semibold text-slate-400 ml-1">{t('checkingAccountStatus', 'Checking account…')}</p>}
               {lookupError && <p className="text-xs font-semibold text-rose-500 ml-1">{lookupError}</p>}
             </div>
 
@@ -145,7 +149,7 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
             )}
 
             <div className="space-y-2 md:col-span-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Amount ({currencySymbol})</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('amountLabel', 'Amount')} ({currencySymbol})</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">{currencySymbol}</span>
                 <input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} min="0.01" step="any" required className="w-full h-14 bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-100 rounded-2xl pl-10 pr-4 text-sm font-semibold outline-none transition-all" />
@@ -154,7 +158,7 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Description (Optional)</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('descriptionLabel', 'Description (Optional)')}</label>
             <div className="relative">
               <FileText className="absolute left-4 top-6 w-5 h-5 text-slate-300" />
               <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="w-full h-32 bg-slate-50 border border-slate-100 focus:bg-white focus:border-blue-100 rounded-2xl pl-12 pr-4 py-5 text-sm font-semibold outline-none transition-all resize-none" />
@@ -163,9 +167,9 @@ export default function TransferPage({ onTransferSubmit, availableBalance, curre
 
           <div className="pt-4 text-center">
             <button type="submit" disabled={isSubmitDisabled} className={`w-full font-bold py-5 rounded-[1.5rem] transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 transform ${isSubmitDisabled ? 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed' : 'bg-[#003399] text-white hover:bg-blue-800 shadow-blue-900/10'}`}>
-              <Send className="w-5 h-5" /> Continue Transfer
+              <Send className="w-5 h-5" /> {t('continueTransferButton', 'Continue Transfer')}
             </button>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-6">Total available balance: {formatUserCurrency ? formatUserCurrency(availableBalance) : `${currencySymbol}${availableBalance.toLocaleString()}`}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-6">{t('availableBalanceLabel', 'Total available balance')}: {formatUserCurrency ? formatUserCurrency(availableBalance) : `${currencySymbol}${availableBalance.toLocaleString()}`}</p>
           </div>
         </form>
       </div>

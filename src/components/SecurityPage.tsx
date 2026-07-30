@@ -76,7 +76,7 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
           </div>
           <div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{t('securityPin', 'Security PIN')}</h2>
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Phase 3 — Transfer PIN Authorization</p>
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">{t('securityPageSubtitle', 'Phase 3 — Transfer PIN Authorization')}</p>
           </div>
         </div>
 
@@ -84,9 +84,9 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-[#003399] shrink-0 mt-0.5" />
           <div className="font-semibold text-xs leading-relaxed">
-            <p className="text-slate-800 mb-1">Authorization Layer Active</p>
+            <p className="text-slate-800 mb-1">{t('securityNoticeTitle', 'Authorization Layer Active')}</p>
             <p className="text-slate-500 leading-normal font-medium">
-              Your Transfer PIN is distinct from your portal login password. This code is required on every outgoing wire transfer, secure deposit execution, or stock trade to verify user intent.
+              {t('securityNoticeBody', 'Your Transfer PIN is distinct from your portal login password. This code is required on every outgoing wire transfer, secure deposit execution, or stock trade to verify user intent.')}
             </p>
           </div>
         </div>
@@ -109,15 +109,15 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
         <div className="grid grid-cols-2 gap-4 border-y border-slate-100 py-6 my-2">
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans mb-1">
-              Active PIN Code
+              {t('activePinLabel', 'Active PIN Code')}
             </span>
             <span className="text-sm font-bold font-mono text-[#003399]">
-              {user.transferPin ? `•••• [${user.transferPin}]` : 'Not Configured (Default "1234")'}
+              {user.transferPin ? `•••• [${user.transferPin}]` : t('pinNotConfigured', 'Not Configured (Default "1234")')}
             </span>
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans mb-1">
-              Validation Protocol
+              {t('validationProtocolLabel', 'Validation Protocol')}
             </span>
             <span className="px-2 py-0.5 text-[9px] font-bold tracking-wider rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100">
               SHA-256 SECURED
@@ -130,7 +130,7 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
           
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-              Create New Transfer PIN
+              {t('createNewPinLabel', 'Create New Transfer PIN')}
             </label>
             <div className="relative">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -148,7 +148,7 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-              Confirm New PIN
+              {t('confirmNewPinLabel', 'Confirm New PIN')}
             </label>
             <div className="relative">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -172,7 +172,7 @@ export default function SecurityPage({ user, onPinUpdated, lang = 'en' }: Securi
             {isLoading ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
             ) : (
-              'Save & Authorize PIN'
+              t('saveAuthorizePin', 'Save & Authorize PIN')
             )}
           </button>
 

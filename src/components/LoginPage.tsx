@@ -583,12 +583,12 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-                {view === 'login' ? t('welcome', 'Welcome Back') : view === 'forgot' ? 'Reset Password' : view === 'register-email' ? 'Confirm Your Email' : view === 'register-code' ? 'Secure Your Account' : t('createAccountTitle', 'Create Account')}
+                {view === 'login' ? t('welcome', 'Welcome Back') : view === 'forgot' ? t('resetPasswordTitle', 'Reset Password') : view === 'register-email' ? t('confirmYourEmailTitle', 'Confirm Your Email') : view === 'register-code' ? t('secureAccountTitle', 'Secure Your Account') : t('createAccountTitle', 'Create Account')}
               </h1>
               <p className="text-blue-100/80 text-base mb-10">
                 {view === 'login'
                   ? t('welcomeDesc', 'Access your premier financial portal securely.') 
-                  : view === 'forgot' ? 'Recover access using a short-lived email verification code.' : view === 'register-email' ? 'Verify your email address before completing registration.' : view === 'register-code' ? 'Finish account setup with your private four-digit login code.' : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
+                  : view === 'forgot' ? t('resetPasswordDesc', 'Recover access using a short-lived email verification code.') : view === 'register-email' ? t('confirmYourEmailDesc', 'Verify your email address before completing registration.') : view === 'register-code' ? t('secureAccountDesc', 'Finish account setup with your private four-digit login code.') : t('signUpDesc', 'Join us to manage registers dynamically across multiple browsers.')}
               </p>
             </div>
 
@@ -598,8 +598,8 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                   <Shield className="w-5 h-5 text-blue-200" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">Security & Compliance</p>
-                  <p className="text-blue-200/60 text-xs">Layered account and transfer controls</p>
+                  <p className="font-semibold text-sm">{t('securityAndCompliance', 'Security & Compliance')}</p>
+                  <p className="text-blue-200/60 text-xs">{t('securityAndComplianceDesc', 'Layered account and transfer controls')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -607,8 +607,8 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                   <Lock className="w-5 h-5 text-blue-200" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">Multi-Factor Active</p>
-                  <p className="text-blue-100/60 text-xs">Protected dynamic pin verifications</p>
+                  <p className="font-semibold text-sm">{t('multiFactorActive', 'Multi-Factor Active')}</p>
+                  <p className="text-blue-100/60 text-xs">{t('multiFactorActiveDesc', 'Protected dynamic pin verifications')}</p>
                 </div>
               </div>
             </div>
@@ -667,7 +667,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             type="email" 
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="name@example.com"
+                            placeholder={t('placeholderEmail', 'name@example.com')}
                             className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
                             required
                           />
@@ -680,8 +680,8 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             className="h-4 w-4 rounded border-slate-300 accent-[#003399]"
                           />
                           <span>
-                            Keep me signed in
-                            <span className="block text-[11px] font-medium text-slate-400">Use only on your personal device.</span>
+                            {t('keepMeSignedIn', 'Keep me signed in')}
+                            <span className="block text-[11px] font-medium text-slate-400">{t('keepMeSignedInHint', 'Use only on your personal device.')}</span>
                           </span>
                         </label>
                       </div>
@@ -708,7 +708,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             type="password" 
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
+                            placeholder={t('placeholderPassword', '••••••••')}
                             className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
                             required
                           />
@@ -723,7 +723,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                         {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('verifyAccount', 'Verify Account')} <ArrowRight className="w-5 h-5" /></>}
                       </button>
                       <button type="button" onClick={() => { setView('forgot'); setError(''); setSuccessMsg(''); }}
-                        className="w-full text-xs font-bold text-[#003399] text-center">Forgot Password?</button>
+                        className="w-full text-xs font-bold text-[#003399] text-center">{t('forgotPassword', 'Forgot Password?')}</button>
                       <button type="button" onClick={() => setStep(1)} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-[#003399] text-center block">{t('orUseAnotherEmail', 'Or use another email')}</button>
                     </form>
                   )}
@@ -731,29 +731,29 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                   {step === 3 && (
                     <form onSubmit={verifyLoginCode} className="space-y-6">
                       <div className="text-center md:text-left">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{loginCodeSetupRequired ? 'Create login code' : 'Enter login code'}</label>
-                        <span className="text-slate-400 text-xs font-medium">{loginCodeSetupRequired ? 'This is a one-time setup for your existing account. Choose four digits you can remember.' : 'Enter the four-digit code you created for secure dashboard access.'}</span>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{loginCodeSetupRequired ? t('createLoginCode', 'Create login code') : t('enterLoginCode', 'Enter login code')}</label>
+                        <span className="text-slate-400 text-xs font-medium">{loginCodeSetupRequired ? t('createLoginCodeDesc', 'This is a one-time setup for your existing account. Choose four digits you can remember.') : t('enterLoginCodeDesc', 'Enter the four-digit code you created for secure dashboard access.')}</span>
                       </div>
                       <div className="relative">
                         <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                        <input type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={4} value={loginCode} onChange={e => setLoginCode(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4-digit login code" className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.5em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all" required autoFocus />
+                        <input type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={4} value={loginCode} onChange={e => setLoginCode(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder={t('placeholderLoginCode', '4-digit login code')} className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.5em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all" required autoFocus />
                       </div>
                       {loginCodeSetupRequired && <div className="relative">
                         <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                        <input type="password" inputMode="numeric" maxLength={4} value={loginCodeConfirmation} onChange={e => setLoginCodeConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="Confirm login code" className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.5em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all" required />
+                        <input type="password" inputMode="numeric" maxLength={4} value={loginCodeConfirmation} onChange={e => setLoginCodeConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder={t('placeholderConfirmLoginCode', 'Confirm login code')} className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.5em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all" required />
                       </div>}
                       <button type="submit" disabled={isLoading || loginCode.length !== 4} className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-50">
-                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{loginCodeSetupRequired ? 'Save Code & Continue' : 'Continue to Email Code'} <ArrowRight className="w-5 h-5" /></>}
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{loginCodeSetupRequired ? t('continue', 'Continue') : t('continue', 'Continue')} <ArrowRight className="w-5 h-5" /></>}
                       </button>
-                      <button type="button" onClick={() => { setStep(2); setError(''); setLoginCode(''); }} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest">Back to password</button>
+                      <button type="button" onClick={() => { setStep(2); setError(''); setLoginCode(''); }} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest">{t('backToPassword', 'Back to password')}</button>
                     </form>
                   )}
 
                   {step === 4 && (
                     <form onSubmit={verifyLoginEmailCode} className="space-y-6">
                       <div className="text-center md:text-left">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Confirm your email</label>
-                        <span className="text-slate-500 text-xs font-medium">Enter the six-digit code sent to {maskedLoginEmail || email}. Email confirmation is required every time you sign in.</span>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('confirmYourEmailFlowTitle', 'Confirm your email')}</label>
+                        <span className="text-slate-500 text-xs font-medium">{t('confirmYourEmailFlowDesc', 'Enter the six-digit code sent to {email}. Email confirmation is required every time you sign in.').replace('{email}', maskedLoginEmail || email)}</span>
                       </div>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
@@ -764,7 +764,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                           maxLength={6}
                           value={emailCode}
                           onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="6-digit email code"
+                          placeholder={t('placeholderEmailCode', '6-digit email code')}
                           className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-lg tracking-[0.4em] font-extrabold focus:bg-white focus:border-blue-200 outline-none transition-all"
                           required
                           autoFocus
@@ -772,10 +772,10 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                       </div>
                       {developmentCode && <p className="text-center text-xs font-semibold text-amber-700 bg-amber-50 rounded-xl p-3">Development code: {developmentCode}</p>}
                       <button type="submit" disabled={isLoading || emailCode.length !== 6} className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-50">
-                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Confirm Email & Open Dashboard <ArrowRight className="w-5 h-5" /></>}
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('confirmEmailAndOpenDashboard', 'Confirm Email & Open Dashboard')} <ArrowRight className="w-5 h-5" /></>}
                       </button>
-                      <button type="button" disabled={isLoading} onClick={resendLoginEmailCode} className="w-full text-xs font-bold text-[#003399] disabled:opacity-50">Send another code</button>
-                      <button type="button" onClick={() => { setStep(2); setError(''); setSuccessMsg(''); setEmailCode(''); }} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest">Restart sign in</button>
+                      <button type="button" disabled={isLoading} onClick={resendLoginEmailCode} className="w-full text-xs font-bold text-[#003399] disabled:opacity-50">{t('sendAnotherCode', 'Send another code')}</button>
+                      <button type="button" onClick={() => { setStep(2); setError(''); setSuccessMsg(''); setEmailCode(''); }} className="w-full text-xs font-bold text-slate-400 uppercase tracking-widest">{t('restartSignIn', 'Restart sign in')}</button>
                     </form>
                   )}
 
@@ -783,8 +783,8 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                     <form onSubmit={verifyConfirmPassword} className="space-y-6">
                       <div className="space-y-2">
                         <div className="text-center md:text-left">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Password change required</label>
-                          <span className="text-slate-400 text-xs font-medium">Create a new password before entering your account.</span>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('passwordChangeRequired', 'Password change required')}</label>
+                          <span className="text-slate-400 text-xs font-medium">{t('passwordChangeRequiredDesc', 'Create a new password before entering your account.')}</span>
                         </div>
                         <div className="relative mt-2">
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
@@ -792,7 +792,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             type="password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="New password"
+                            placeholder={t('placeholderNewPassword', 'New password')}
                             className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
                             required
                           />
@@ -803,7 +803,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                             type="password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Confirm new password"
+                            placeholder={t('placeholderConfirmNewPassword', 'Confirm new password')}
                             className="w-full h-14 bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 text-sm font-semibold focus:bg-white focus:border-blue-200 outline-none transition-all"
                             required
                           />
@@ -815,7 +815,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                         disabled={isLoading}
                         className="w-full h-14 bg-[#003399] text-white font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-70"
                       >
-                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Change Password & Continue <ArrowRight className="w-5 h-5" /></>}
+                        {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('changePasswordAndContinue', 'Change Password & Continue')} <ArrowRight className="w-5 h-5" /></>}
                       </button>
                     </form>
                   )}
@@ -838,47 +838,47 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                 </motion.div>
               ) : view === 'forgot' ? (
                 <motion.div key="forgot-view" initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} className="max-w-md mx-auto w-full">
-                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Forgot Password?</h2>
-                  <p className="text-sm text-slate-500 mb-6">Enter your registered email. We’ll send a reset code that expires in 15 minutes.</p>
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">{t('forgotPassword', 'Forgot Password?')}</h2>
+                  <p className="text-sm text-slate-500 mb-6">{t('resetPasswordDesc', 'Recover access using a short-lived email verification code.')}</p>
                   {successMsg && <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold">{successMsg}{developmentCode && <span className="block mt-1">Development code: {developmentCode}</span>}</div>}
                   {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold">{error}</div>}
-                  {!resetRequested ? <form onSubmit={requestReset} className="space-y-4"><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="field-control" placeholder="Registered email" required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Sending…' : 'Send Reset Code'}</button></form>
-                  : <form onSubmit={completeReset} className="space-y-4"><input value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))} className="field-control" placeholder="6-digit reset code" required /><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder="New password" required /><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder="Confirm new password" required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Updating…' : 'Reset Password'}</button></form>}
-                  <button onClick={() => { setView('login'); setResetRequested(false); setError(''); }} className="w-full mt-5 text-xs font-bold text-slate-400">Back to sign in</button>
+                  {!resetRequested ? <form onSubmit={requestReset} className="space-y-4"><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="field-control" placeholder={t('placeholderRegisteredEmail', 'Registered email')} required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Sending…' : t('sendResetCode', 'Send Reset Code')}</button></form>
+                  : <form onSubmit={completeReset} className="space-y-4"><input value={resetCode} onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))} className="field-control" placeholder={t('resetCodePlaceholder', '6-digit reset code')} required /><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="field-control" placeholder={t('placeholderNewPassword', 'New password')} required /><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="field-control" placeholder={t('placeholderConfirmNewPassword', 'Confirm new password')} required /><button disabled={isLoading} className="w-full py-4 rounded-xl bg-[#003399] text-white font-bold text-sm">{isLoading ? 'Updating…' : t('resetPasswordButton', 'Reset Password')}</button></form>}
+                  <button onClick={() => { setView('login'); setResetRequested(false); setError(''); }} className="w-full mt-5 text-xs font-bold text-slate-400">{t('backToSignIn', 'Back to sign in')}</button>
                 </motion.div>
               ) : view === 'register-email' ? (
                 <motion.div key="register-email-view" initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} className="max-w-md mx-auto w-full">
                   <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#003399] flex items-center justify-center mx-auto md:mx-0 mb-5"><Mail className="w-8 h-8"/></div>
-                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Verify Your Email</h2>
-                  <p className="text-sm text-slate-500 mb-6">We sent a six-digit confirmation code to <strong>{registrationMaskedEmail || email}</strong>. Confirm it before your Blue Crest registration can be completed.</p>
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">{t('verifyEmailTitle', 'Verify Your Email')}</h2>
+                  <p className="text-sm text-slate-500 mb-6">{t('verifyEmailDesc', 'We sent a six-digit confirmation code to {email}. Confirm it before your Blue Crest registration can be completed.').replace('{email}', registrationMaskedEmail || email)}</p>
                   {successMsg && <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold">{successMsg}</div>}
                   {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold">{error}</div>}
                   {developmentCode && <div className="mb-4 p-3 rounded-xl bg-amber-50 text-amber-700 text-xs font-bold text-center">Development code: {developmentCode}</div>}
                   <form onSubmit={completeRegistrationEmailVerification} className="space-y-4">
                     <div>
-                      <label className="form-label">Email confirmation code</label>
+                      <label className="form-label">{t('emailConfirmationCode', 'Email confirmation code')}</label>
                       <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={registrationEmailCode} onChange={(event) => setRegistrationEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} className="field-control text-center tracking-[0.4em] text-lg" placeholder="6-digit code" required autoFocus />
                     </div>
                     <button disabled={isLoading || registrationEmailCode.length !== 6} className="w-full h-14 rounded-xl bg-[#003399] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-                      {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <>Confirm Email <ArrowRight className="w-5 h-5"/></>}
+                      {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <>{t('confirmEmailButton', 'Confirm Email')} <ArrowRight className="w-5 h-5"/></>}
                     </button>
                   </form>
-                  <button type="button" onClick={resendRegistrationEmailCode} disabled={isLoading} className="w-full mt-5 text-xs font-bold text-[#003399] disabled:opacity-50">Send another code</button>
-                  <p className="mt-4 text-center text-[11px] font-medium text-slate-400">Check your Spam or Junk folder if the message does not appear in your inbox.</p>
+                  <button type="button" onClick={resendRegistrationEmailCode} disabled={isLoading} className="w-full mt-5 text-xs font-bold text-[#003399] disabled:opacity-50">{t('sendAnotherCode', 'Send another code')}</button>
+                  <p className="mt-4 text-center text-[11px] font-medium text-slate-400">{t('checkSpamHint', 'Check your Spam or Junk folder if the message does not appear in your inbox.')}</p>
                 </motion.div>
               ) : view === 'register-code' ? (
                 <motion.div key="register-code-view" initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }} className="max-w-md mx-auto w-full">
                   <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto md:mx-0 mb-5"><UserCheck className="w-8 h-8"/></div>
-                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Account Created</h2>
-                  <p className="text-sm text-slate-500 mb-2">Your banking account has been created successfully.</p>
-                  <p className="text-sm text-slate-500 mb-6">Now create the four-digit login code you’ll use after your password whenever you sign in.</p>
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">{t('accountCreatedTitle', 'Account Created')}</h2>
+                  <p className="text-sm text-slate-500 mb-2">{t('accountCreatedDesc', 'Your banking account has been created successfully.')}</p>
+                  <p className="text-sm text-slate-500 mb-6">{t('accountCreatedSubtitle', 'Now create the four-digit login code you’ll use after your password whenever you sign in.')}</p>
                   {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold">{error}</div>}
                   <form onSubmit={completeRegistrationLoginCode} className="space-y-4">
-                    <div><label className="form-label">Create 4-digit login code</label><input type="password" inputMode="numeric" autoComplete="new-password" maxLength={4} value={regLoginCode} onChange={e => setRegLoginCode(e.target.value.replace(/\D/g, '').slice(0, 4))} className="field-control text-center tracking-[0.5em] text-lg" required autoFocus /></div>
-                    <div><label className="form-label">Confirm login code</label><input type="password" inputMode="numeric" autoComplete="new-password" maxLength={4} value={regLoginCodeConfirmation} onChange={e => setRegLoginCodeConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} className="field-control text-center tracking-[0.5em] text-lg" required /></div>
-                    <button disabled={isLoading || regLoginCode.length !== 4 || regLoginCodeConfirmation.length !== 4} className="w-full h-14 rounded-xl bg-[#003399] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <>Create Login Code <ArrowRight className="w-5 h-5"/></>}</button>
+                    <div><label className="form-label">{t('createFourDigitLoginCode', 'Create 4-digit login code')}</label><input type="password" inputMode="numeric" autoComplete="new-password" maxLength={4} value={regLoginCode} onChange={e => setRegLoginCode(e.target.value.replace(/\D/g, '').slice(0, 4))} className="field-control text-center tracking-[0.5em] text-lg" required autoFocus /></div>
+                    <div><label className="form-label">{t('confirmLoginCode', 'Confirm login code')}</label><input type="password" inputMode="numeric" autoComplete="new-password" maxLength={4} value={regLoginCodeConfirmation} onChange={e => setRegLoginCodeConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} className="field-control text-center tracking-[0.5em] text-lg" required /></div>
+                    <button disabled={isLoading || regLoginCode.length !== 4 || regLoginCodeConfirmation.length !== 4} className="w-full h-14 rounded-xl bg-[#003399] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">{isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <>{t('createLoginCodeButton', 'Create Login Code')} <ArrowRight className="w-5 h-5"/></>}</button>
                   </form>
-                  <button type="button" onClick={() => { setView('login'); setStep(1); setError(''); setSuccessMsg('Finish setting up your login code after signing in.'); }} className="w-full mt-5 text-xs font-bold text-slate-400">Finish later and sign in</button>
+                  <button type="button" onClick={() => { setView('login'); setStep(1); setError(''); setSuccessMsg('Finish setting up your login code after signing in.'); }} className="w-full mt-5 text-xs font-bold text-slate-400">{t('finishLaterAndSignIn', 'Finish later and sign in')}</button>
                 </motion.div>
               ) : (
                 <motion.div 
@@ -1034,12 +1034,12 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
                     </div>
 
                     <fieldset className="space-y-2">
-                      <legend className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Choose your account type <span className="text-rose-500">*</span></legend>
+                      <legend className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">{t('chooseAccountType', 'Choose your account type')} <span className="text-rose-500">*</span></legend>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {[
-                          { value: 'CHECKING', label: 'Checking', detail: 'Everyday banking', icon: Landmark },
-                          { value: 'SAVINGS', label: 'Savings', detail: 'Build your savings', icon: PiggyBank },
-                          { value: 'FIXED_DEPOSIT', label: 'Fixed Deposit', detail: 'Save for a set term', icon: CalendarClock }
+                          { value: 'CHECKING', label: t('checkingAccountLabel', 'Checking'), detail: t('checkingAccountDetail', 'Everyday banking'), icon: Landmark },
+                          { value: 'SAVINGS', label: t('savingsAccountLabel', 'Savings'), detail: t('savingsAccountDetail', 'Build your savings'), icon: PiggyBank },
+                          { value: 'FIXED_DEPOSIT', label: t('fixedDepositLabel', 'Fixed Deposit'), detail: t('fixedDepositDetail', 'Save for a set term'), icon: CalendarClock }
                         ].map(option => <label key={option.value} className={`cursor-pointer rounded-2xl border p-3 transition-all ${regAccountType === option.value ? 'border-[#003399] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-100 bg-slate-50 hover:border-blue-200'}`}>
                           <input type="radio" name="account_type" value={option.value} checked={regAccountType === option.value} onChange={e => setRegAccountType(e.target.value)} className="sr-only" required />
                           <option.icon className={`w-5 h-5 mb-2 ${regAccountType === option.value ? 'text-[#003399]' : 'text-slate-400'}`}/>
@@ -1080,7 +1080,7 @@ export default function LoginPage({ onLogin, lang, onLanguageChange }: LoginPage
 
             <div className="mt-10 pt-6 border-t border-slate-100 text-center">
               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                Support: <span className="text-[#003399]">0800 BLUE CREST</span>
+                {t('supportLine', 'Support')}: <span className="text-[#003399]">0800 BLUE CREST</span>
               </p>
             </div>
           </div>

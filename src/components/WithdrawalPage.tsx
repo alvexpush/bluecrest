@@ -12,6 +12,7 @@ import {
   WalletCards
 } from 'lucide-react';
 import { apiRequest } from '../lib/api';
+import { getTranslation, LanguageCode } from '../lib/translations';
 
 type Method = 'BANK_TRANSFER' | 'CRYPTO_WALLET' | 'PAYPAL' | 'CARD';
 
@@ -72,10 +73,12 @@ const fields: Record<Method, { key: string; label: string; placeholder?: string;
 
 export default function WithdrawalPage({
   balance,
-  formatCurrency
+  formatCurrency,
+  lang = 'en'
 }: {
   balance: number;
   formatCurrency: (amount: number) => string;
+  lang?: LanguageCode;
 }) {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
@@ -89,6 +92,8 @@ export default function WithdrawalPage({
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showDestinationForm, setShowDestinationForm] = useState(false);
+
+  const t = (key: string, fallback: string = '') => getTranslation(lang, key, fallback);
 
   const load = useCallback(async () => {
     const [saved, requests] = await Promise.all([
@@ -130,7 +135,7 @@ export default function WithdrawalPage({
       setLabel('');
       setPreferred(false);
       setShowDestinationForm(false);
-      setMessage('Withdrawal destination saved.');
+      setMessage(t('withdrawalDestinationSaved', 'Withdrawal destination saved.'));
       await load();
     } catch (error: any) {
       setMessage(error.message);
@@ -154,7 +159,7 @@ export default function WithdrawalPage({
       });
       setAmount('');
       setNote('');
-      setMessage('Withdrawal request submitted for administrative review.');
+      setMessage(t('withdrawalSubmitted', 'Withdrawal request submitted for administrative review.'));
       await load();
     } catch (error: any) {
       setMessage(error.message);
@@ -172,12 +177,12 @@ export default function WithdrawalPage({
     <div className="max-w-5xl mx-auto space-y-6 py-4 md:py-8">
       <section className="bg-slate-900 text-white rounded-[2.5rem] p-7 md:p-10 flex flex-col md:flex-row justify-between gap-6">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-blue-300 font-bold">Company payout center</p>
-          <h2 className="text-3xl font-extrabold mt-2">Withdraw your funds</h2>
-          <p className="text-slate-400 text-sm mt-2">Save an approved destination and submit a trackable payout request.</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-blue-300 font-bold">{t('withdrawalCompanyPayout', 'Company payout center')}</p>
+          <h2 className="text-3xl font-extrabold mt-2">{t('withdrawalPageTitle', 'Withdraw your funds')}</h2>
+          <p className="text-slate-400 text-sm mt-2">{t('withdrawalPageSubtitle', 'Save an approved destination and submit a trackable payout request.')}</p>
         </div>
         <div className="bg-white/10 rounded-2xl px-6 py-4 self-start">
-          <p className="text-[10px] uppercase text-slate-400 font-bold">Available balance</p>
+          <p className="text-[10px] uppercase text-slate-400 font-bold">{t('availableBalanceShort', 'Available balance')}</p>
           <p className="text-xl font-extrabold mt-1">{formatCurrency(balance)}</p>
         </div>
       </section>
@@ -192,8 +197,8 @@ export default function WithdrawalPage({
         <section className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-extrabold text-slate-900">Saved payout destinations</h3>
-              <p className="text-xs text-slate-400 mt-1">Choose where an approved payout should be delivered.</p>
+              <h3 className="font-extrabold text-slate-900">{t('savedPayoutDestinationsTitle', 'Saved payout destinations')}</h3>
+              <p className="text-xs text-slate-400 mt-1">{t('savedPayoutDestinationsSubtitle', 'Choose where an approved payout should be delivered.')}</p>
             </div>
             <button
               type="button"
@@ -218,7 +223,7 @@ export default function WithdrawalPage({
 
               <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-800">
                 <ShieldCheck className="w-5 h-5 shrink-0" />
-                <p>Passwords, full card numbers, CVVs and card PINs are never requested or transmitted.</p>
+                <p>{t('securityNoticeWithdrawal', 'Passwords, full card numbers, CVVs and card PINs are never requested or transmitted.')}</p>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -241,14 +246,14 @@ export default function WithdrawalPage({
               </div>
 
               <div>
-                <label htmlFor="destination-label" className="form-label">Destination label</label>
+                <label htmlFor="destination-label" className="form-label">{t('destinationLabel', 'Destination label')}</label>
                 <input
                   id="destination-label"
                   name="label"
                   value={label}
                   onChange={event => setLabel(event.target.value)}
                   required
-                  placeholder="Main business account"
+                  placeholder={t('destinationLabelPlaceholder', 'Main business account')}
                   className="field-control"
                 />
               </div>
@@ -286,7 +291,7 @@ export default function WithdrawalPage({
               </label>
 
               <button disabled={loading} className="w-full py-3 rounded-xl bg-slate-900 text-white text-xs font-bold">
-                {loading ? 'Saving…' : 'Save destination'}
+                {loading ? 'Saving…' : t('addWithdrawalDestination', 'Add withdrawal destination')}
               </button>
             </form>
           )}
@@ -388,7 +393,7 @@ export default function WithdrawalPage({
               disabled={loading || !selectedId}
               className="w-full py-4 rounded-2xl bg-[#003399] disabled:bg-slate-200 text-white font-bold text-sm"
             >
-              {loading ? 'Submitting…' : 'Submit withdrawal request'}
+              {loading ? 'Submitting…' : t('submitWithdrawalButton', 'Submit withdrawal request')}
             </button>
           </form>
 

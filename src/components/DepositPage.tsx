@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowRight, Bitcoin, Check, CheckCircle2, Copy, Gift, ImagePlus, Info, LoaderCircle, ShieldCheck, X } from 'lucide-react';
 import { apiRequest } from '../lib/api';
+import { getTranslation, LanguageCode } from '../lib/translations';
 
 const FALLBACK_BITCOIN_ADDRESS = 'bc1qdxsym4k0rfne6cd0pn6233llkh5sy4fhj7p44l';
 const GIFT_CARD_TYPES = ['Apple', 'Amazon', 'Google Play', 'Steam', 'Visa / Mastercard', 'eBay', 'Walmart', 'Other'];
@@ -18,11 +19,12 @@ interface DepositPageProps {
   targetAccountLabel?: string;
   compact?: boolean;
   onSubmitted?: () => void;
+  lang?: LanguageCode;
 }
 
 type DepositMethod = 'BITCOIN' | 'GIFTCARD';
 
-export default function DepositPage({ formatCurrency, targetAccountId, targetAccountLabel, compact = false, onSubmitted }: DepositPageProps) {
+export default function DepositPage({ formatCurrency, targetAccountId, targetAccountLabel, compact = false, onSubmitted, lang = 'en' }: DepositPageProps) {
   const [method, setMethod] = useState<DepositMethod>('BITCOIN');
   const [amount, setAmount] = useState('');
   const [bitcoinAddress, setBitcoinAddress] = useState(FALLBACK_BITCOIN_ADDRESS);
@@ -34,8 +36,9 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
+  const t = (key: string, fallback: string = '') => getTranslation(lang, key, fallback);
   const isGiftCard = method === 'GIFTCARD';
-  const methodLabel = isGiftCard ? 'gift card' : 'Bitcoin';
+  const methodLabel = isGiftCard ? t('depositMethodGiftCardLabel', 'gift card') : t('depositMethodBitcoinLabel', 'Bitcoin');
 
   useEffect(() => {
     apiRequest<{ bitcoin_address: string }>('/api/v1/deposits/config')
@@ -63,29 +66,29 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
     try {
       await navigator.clipboard.writeText(bitcoinAddress);
       setCopied(true);
-      showMessage('Bitcoin address copied. Complete your BTC payment, then upload the transaction receipt below.');
+      showMessage(t('bitcoinAddressCopied', 'Bitcoin address copied. Complete your BTC payment, then upload the transaction receipt below.'));
     } catch {
-      showMessage('Could not copy automatically. Press and hold the address to copy it.', true);
+      showMessage(t('copyAddressError', 'Could not copy automatically. Press and hold the address to copy it.'), true);
     }
   };
 
   const addImages = async (files: FileList | null) => {
     if (!files) return;
     const selected = Array.from(files);
-    if (images.length + selected.length > 5) return showMessage('You can attach up to 5 proof images.', true);
+    if (images.length + selected.length > 5) return showMessage(t('maxProofImages', 'You can attach up to 5 proof images.'), true);
     if (selected.some(file => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))) {
-      return showMessage('Only PNG, JPG, or WebP images can be uploaded.', true);
+      return showMessage(t('uploadImageTypeError', 'Only PNG, JPG, or WebP images can be uploaded.'), true);
     }
     if (selected.some(file => file.size > 3 * 1024 * 1024)) {
-      return showMessage('Each proof image must be smaller than 3 MB.', true);
+      return showMessage(t('uploadImageSizeError', 'Each proof image must be smaller than 3 MB.'), true);
     }
 
     try {
       const encoded = await Promise.all(selected.map(async file => ({ name: file.name, data: await readImage(file) })));
       setImages(current => [...current, ...encoded]);
-      showMessage(`${encoded.length} proof image${encoded.length === 1 ? '' : 's'} attached.`);
+      showMessage(t('proofImagesAttached', `${encoded.length} proof image${encoded.length === 1 ? '' : 's'} attached.`));
     } catch (error: any) {
-      showMessage(error.message || 'Could not read the selected image.', true);
+      showMessage(error.message || t('proofImageReadError', 'Could not read the selected image.'), true);
     }
   };
 
@@ -93,9 +96,9 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
     event.preventDefault();
     const numericAmount = Number(amount);
     const selectedCardName = cardType === 'Other' ? customCardType.trim() : cardType;
-    if (!numericAmount || numericAmount <= 0) return showMessage('Enter a valid deposit amount.', true);
-    if (isGiftCard && !selectedCardName) return showMessage('Select or enter the gift card type.', true);
-    if (images.length === 0) return showMessage(`Upload proof of your ${methodLabel} deposit before submitting.`, true);
+    if (!numericAmount || numericAmount <= 0) return showMessage(t('validDepositAmount', 'Enter a valid deposit amount.'), true);
+    if (isGiftCard && !selectedCardName) return showMessage(t('selectGiftCardType', 'Select or enter the gift card type.'), true);
+    if (images.length === 0) return showMessage(t('uploadDepositProof', `Upload proof of your ${methodLabel} deposit before submitting.`), true);
 
     try {
       setBusy(true);
@@ -110,7 +113,7 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
           ...(targetAccountId ? { account_id: targetAccountId } : {})
         })
       });
-      showMessage(`Your ${formatCurrency ? formatCurrency(numericAmount) : numericAmount} ${methodLabel} deposit request${targetAccountLabel ? ` to ${targetAccountLabel}` : ''} was submitted for admin review.`);
+      showMessage(t('depositSubmitted', `Your ${formatCurrency ? formatCurrency(numericAmount) : numericAmount} ${methodLabel} deposit request${targetAccountLabel ? ` to ${targetAccountLabel}` : ''} was submitted for admin review.`));
       setAmount('');
       setImages([]);
       setCopied(false);
@@ -120,7 +123,7 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
       }
       onSubmitted?.();
     } catch (error: any) {
-      showMessage(error.message || 'Could not submit the deposit.', true);
+      showMessage(error.message || t('depositSubmitError', 'Could not submit the deposit.'), true);
     } finally {
       setBusy(false);
     }
@@ -130,28 +133,28 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
     <div className={compact ? '' : 'max-w-4xl mx-auto py-4 md:py-8'}>
       {!compact && (
         <div className="mb-7">
-          <p className="text-[10px] font-bold text-[#003399] uppercase tracking-[0.2em]">Fund your account</p>
-          <h2 className="text-2xl font-extrabold text-slate-900 mt-1">Make a deposit</h2>
-          <p className="mt-2 text-sm text-slate-500">Choose Bitcoin or gift card, enter the value, and upload clear proof for admin review.</p>
+          <p className="text-[10px] font-bold text-[#003399] uppercase tracking-[0.2em]">{t('depositPageTitle', 'Fund your account')}</p>
+          <h2 className="text-2xl font-extrabold text-slate-900 mt-1">{t('makeDepositTitle', 'Make a deposit')}</h2>
+          <p className="mt-2 text-sm text-slate-500">{t('depositPageSubtitle', 'Choose Bitcoin or gift card, enter the value, and upload clear proof for admin review.')}</p>
         </div>
       )}
 
       {targetAccountLabel && (
         <div className="mb-4 rounded-2xl bg-blue-50 border border-blue-100 p-3 text-xs font-bold text-[#003399]">
-          Deposit destination: {targetAccountLabel}
+          {t('depositDestination', 'Deposit destination')}: {targetAccountLabel}
         </div>
       )}
 
       <div className="mb-5 grid grid-cols-2 gap-3">
         <button type="button" onClick={() => selectMethod('BITCOIN')} className={`rounded-2xl border p-4 text-left transition-colors ${method === 'BITCOIN' ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-100 bg-white hover:border-blue-200'}`}>
           <Bitcoin className={`mb-3 h-6 w-6 ${method === 'BITCOIN' ? 'text-[#003399]' : 'text-slate-400'}`} />
-          <span className="block text-sm font-extrabold text-slate-800">Bitcoin</span>
-          <span className="mt-1 block text-[10px] leading-4 text-slate-500">Send BTC and attach the transaction receipt.</span>
+          <span className="block text-sm font-extrabold text-slate-800">{t('depositMethodBitcoin', 'Bitcoin')}</span>
+          <span className="mt-1 block text-[10px] leading-4 text-slate-500">{t('depositMethodBitcoinDesc', 'Send BTC and attach the transaction receipt.')}</span>
         </button>
         <button type="button" onClick={() => selectMethod('GIFTCARD')} className={`rounded-2xl border p-4 text-left transition-colors ${method === 'GIFTCARD' ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-100 bg-white hover:border-blue-200'}`}>
           <Gift className={`mb-3 h-6 w-6 ${method === 'GIFTCARD' ? 'text-[#003399]' : 'text-slate-400'}`} />
-          <span className="block text-sm font-extrabold text-slate-800">Gift Card</span>
-          <span className="mt-1 block text-[10px] leading-4 text-slate-500">Submit clear front and back images of your card.</span>
+          <span className="block text-sm font-extrabold text-slate-800">{t('depositMethodGiftCard', 'Gift Card')}</span>
+          <span className="mt-1 block text-[10px] leading-4 text-slate-500">{t('depositMethodGiftCardDesc', 'Submit clear front and back images of your card.')}</span>
         </button>
       </div>
 
@@ -161,53 +164,53 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#003399] text-xs font-extrabold text-white">1</span>
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">Enter the deposit value</h3>
-                <p className="text-[11px] text-slate-500">This is the amount that will be credited after approval.</p>
+                <h3 className="text-sm font-extrabold text-slate-900">{t('depositValueHeading', 'Enter the deposit value')}</h3>
+                <p className="text-[11px] text-slate-500">{t('depositValueHint', 'This is the amount that will be credited after approval.')}</p>
               </div>
             </div>
-            <input type="number" min="0.01" step="0.01" value={amount} onChange={event => setAmount(event.target.value)} className="field-control text-lg font-extrabold" placeholder="0.00" />
+            <input type="number" min="0.01" step="0.01" value={amount} onChange={event => setAmount(event.target.value)} className="field-control text-lg font-extrabold" placeholder={t('depositAmountPlaceholder', '0.00')} />
           </section>
 
           <section className="border-t border-slate-100 pt-7">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#003399] text-xs font-extrabold text-white">2</span>
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">{isGiftCard ? 'Tell us which gift card you are sending' : 'Send Bitcoin to the address below'}</h3>
-                <p className="text-[11px] text-slate-500">{isGiftCard ? 'Choose the brand so the admin can verify it correctly.' : 'Use only the Bitcoin network for this payment.'}</p>
+                <h3 className="text-sm font-extrabold text-slate-900">{isGiftCard ? t('depositInstructionGiftCard', 'Tell us which gift card you are sending') : t('depositInstructionBitcoin', 'Send Bitcoin to the address below')}</h3>
+                <p className="text-[11px] text-slate-500">{isGiftCard ? t('depositInstructionGiftCardHint', 'Choose the brand so the admin can verify it correctly.') : t('depositInstructionBitcoinHint', 'Use only the Bitcoin network for this payment.')}</p>
               </div>
             </div>
 
             {isGiftCard ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 <label>
-                  <span className="form-label">Gift card type</span>
+                  <span className="form-label">{t('giftCardTypeLabel', 'Gift card type')}</span>
                   <select value={cardType} onChange={event => setCardType(event.target.value)} className="field-control">
-                    <option value="">Select gift card</option>
+                    <option value="">{t('selectGiftCard', 'Select gift card')}</option>
                     {GIFT_CARD_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                   </select>
                 </label>
                 {cardType === 'Other' && (
                   <label>
-                    <span className="form-label">Card name</span>
-                    <input maxLength={80} value={customCardType} onChange={event => setCustomCardType(event.target.value)} className="field-control" placeholder="Enter gift card brand" />
+                    <span className="form-label">{t('cardNameLabel', 'Card name')}</span>
+                    <input maxLength={80} value={customCardType} onChange={event => setCustomCardType(event.target.value)} className="field-control" placeholder={t('cardNamePlaceholder', 'Enter gift card brand')} />
                   </label>
                 )}
                 <div className="sm:col-span-2 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] font-semibold leading-5 text-amber-800">
                   <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                  Make sure the card brand and value are visible. Do not send the same card in more than one request.
+                  {t('giftCardHint', 'Make sure the card brand and value are visible. Do not send the same card in more than one request.')}
                 </div>
               </div>
             ) : (
               <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-slate-50 p-4 md:p-5">
                 <div className="mb-3 flex items-center gap-2 text-[#003399]">
                   <Bitcoin className="h-5 w-5" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest">Bitcoin network (BTC)</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest">{t('bitcoinNetworkLabel', 'Bitcoin network (BTC)')}</span>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <code className="min-w-0 flex-1 select-all break-all rounded-xl bg-white p-4 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{bitcoinAddress}</code>
                   <button type="button" onClick={copyAddress} className={`flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-5 text-xs font-bold text-white ${copied ? 'bg-emerald-600' : 'bg-[#003399] hover:bg-blue-800'}`}>
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? 'Address copied' : 'Copy address'}
+                    {copied ? t('addressCopied', 'Address copied') : t('copyAddressButton', 'Copy address')}
                   </button>
                 </div>
                 <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] font-semibold leading-5 text-amber-800">
@@ -222,14 +225,14 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#003399] text-xs font-extrabold text-white">3</span>
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">{isGiftCard ? 'Upload the gift card images' : 'Upload your transaction receipt'}</h3>
-                <p className="text-[11px] text-slate-500">{isGiftCard ? 'Front and back images are recommended for a complete review.' : 'Attach a clear screenshot after completing the payment.'}</p>
+                <h3 className="text-sm font-extrabold text-slate-900">{isGiftCard ? t('uploadGiftCardHeading', 'Upload the gift card images') : t('uploadReceiptHeading', 'Upload your transaction receipt')}</h3>
+                <p className="text-[11px] text-slate-500">{isGiftCard ? t('uploadGiftCardHint', 'Front and back images are recommended for a complete review.') : t('uploadReceiptHint', 'Attach a clear screenshot after completing the payment.')}</p>
               </div>
             </div>
             <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-4 text-center text-slate-500 hover:border-blue-300 hover:bg-blue-50/40">
               <ImagePlus className="mb-2 h-7 w-7 text-[#003399]" />
-              <span className="text-xs font-extrabold text-slate-700">{isGiftCard ? 'Upload front, back, or receipt images' : 'Upload Bitcoin transaction receipt'}</span>
-              <span className="mt-1 text-[10px]">PNG, JPG, or WebP · maximum 3 MB each · up to 5 images</span>
+              <span className="text-xs font-extrabold text-slate-700">{isGiftCard ? t('uploadGiftCardDropText', 'Upload front, back, or receipt images') : t('uploadDropText', 'Upload Bitcoin transaction receipt')}</span>
+              <span className="mt-1 text-[10px]">{t('uploadDropHint', 'PNG, JPG, or WebP · maximum 3 MB each · up to 5 images')}</span>
               <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={event => { addImages(event.target.files); event.target.value = ''; }} />
             </label>
             {images.length > 0 && (
@@ -256,7 +259,7 @@ export default function DepositPage({ formatCurrency, targetAccountId, targetAcc
 
         <div className="border-t border-slate-100 bg-slate-50 px-6 py-5 md:px-8">
           <div className="mb-3 flex items-center gap-2 text-[10px] font-bold text-slate-500">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" /> Your account is credited only after an admin reviews and approves the evidence.
+            <ShieldCheck className="h-4 w-4 text-emerald-600" /> {t('depositReviewNotice', 'Your account is credited only after an admin reviews and approves the evidence.')}
           </div>
           <button disabled={busy} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#003399] font-bold text-white disabled:opacity-60">
             {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}

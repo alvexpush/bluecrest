@@ -162,9 +162,9 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
           <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mb-6">
             <ShieldAlert className="w-10 h-10" />
           </div>
-          <h2 className="text-2xl font-bold font-sans text-slate-800 tracking-tight mb-3">Verify Your KYC to Qualify</h2>
+          <h2 className="text-2xl font-bold font-sans text-slate-800 tracking-tight mb-3">{t('loanEligibilityTitle', 'Verify Your KYC to Qualify')}</h2>
           <p className="text-slate-500 text-sm max-w-lg mx-auto font-medium leading-relaxed mb-8">
-            Verify your KYC to qualify for a loan of up to {formatCurrency(MAX_ELIGIBLE_LOAN)} with Tier 1 deposits.
+            {t('loanEligibilityDescription', 'Verify your KYC to qualify for a loan of up to {amount} with Tier 1 deposits.').replace('{amount}', formatCurrency(MAX_ELIGIBLE_LOAN))}
           </p>
 
           <button
@@ -190,16 +190,16 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
         <div className="space-y-3 shrink-0 relative z-10 text-center md:text-left">
           <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            KYC Verified · Tier 1 Eligible
+            {t('loanEligibilityBadge', 'KYC Verified · Tier 1 Eligible')}
           </div>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Flexible Asset Financing</h2>
-          <p className="text-blue-100/80 text-sm max-w-sm">Drawn capital carries an origination fee of 5.0% and is fully backed by real reserves.</p>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('loanHeaderTitle', 'Flexible Asset Financing')}</h2>
+          <p className="text-blue-100/80 text-sm max-w-sm">{t('loanHeaderDescription', 'Drawn capital carries an origination fee of 5.0% and is fully backed by real reserves.')}</p>
         </div>
 
         <div className="bg-white/10 border border-white/10 rounded-3xl p-6 text-center shrink-0 backdrop-blur-sm relative z-10 min-w-48">
-          <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-1">Max Borrow Limit</p>
+          <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-1">{t('maxBorrowLimit', 'Max Borrow Limit')}</p>
           <p className="text-3xl font-extrabold">{formatCurrency(MAX_ELIGIBLE_LOAN)}</p>
-          <p className="text-[10px] text-blue-200 mt-1 font-bold">5.0% Fixed APR</p>
+          <p className="text-[10px] text-blue-200 mt-1 font-bold">{t('fixedAprTag', '5.0% Fixed APR')}</p>
         </div>
       </div>
 
@@ -211,7 +211,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
             <div className="w-10 h-10 bg-blue-50 text-[#003399] rounded-xl flex items-center justify-center">
               <Calculator className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-800 text-lg">Apply For Loan</h3>
+            <h3 className="font-bold text-slate-800 text-lg">{t('applyLoanTitle', 'Apply For Loan')}</h3>
           </div>
 
           {successMsg && (
@@ -231,7 +231,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
             {/* Amount */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                Loan Amount (USD)
+                {t('loanAmountLabel', 'Loan Amount (USD)')}
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
@@ -252,7 +252,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
             {/* Repayment Term */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                Repayment Term
+                {t('repaymentTermLabel', 'Repayment Term')}
               </label>
               <select 
                 value={repaymentMonths}
@@ -270,7 +270,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
             {/* Loan Purpose */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                Purpose/Description
+                {t('purposeLabel', 'Purpose/Description')}
               </label>
               <input 
                 type="text"
@@ -286,16 +286,16 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
             {parsedAmount > 0 && (
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 font-semibold">
                 <div className="flex justify-between text-xs text-slate-500">
-                  <span>Origination Fee (5%)</span>
+                  <span>{t('originationFeeLabel', 'Origination Fee (5%)')}</span>
                   <span className="text-slate-800 font-bold">{formatCurrency(calculatedFee)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-500">
-                  <span>Estimated Repayment/Mo</span>
+                  <span>{t('estimatedRepaymentLabel', 'Estimated Repayment/Mo')}</span>
                   <span className="text-slate-800 font-bold">{formatCurrency(estimatedMonthly)} / mo</span>
                 </div>
                 <p className="text-[10px] text-[#003399] font-bold leading-relaxed border-t border-slate-100 pt-2 flex items-start gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Note: A 5% escrow clearance fee is billed on approval before disbursement.
+                  {t('loanNoteMessage', 'Note: A 5% escrow clearance fee is billed on approval before disbursement.')}
                 </p>
               </div>
             )}
@@ -308,7 +308,7 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                'Submit Loan Application'
+                t('submitLoanApplication', 'Submit Loan Application')
               )}
             </button>
 
@@ -318,17 +318,17 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
         {/* Repayments Or Status Listing */}
         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-50 flex flex-col justify-between">
           <div className="space-y-6 w-full">
-            <h3 className="font-bold text-slate-800 text-lg">My Loans / Applications</h3>
+            <h3 className="font-bold text-slate-800 text-lg">{t('myLoansTitle', 'My Loans / Applications')}</h3>
 
             {isPageLoading ? (
               <div className="py-20 text-center">
                 <div className="w-8 h-8 border-4 border-blue-100 border-t-[#003399] rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-slate-400 text-xs font-semibold">Retrieving Loan History...</p>
+                <p className="text-slate-400 text-xs font-semibold">{t('retrievingLoanHistory', 'Retrieving Loan History...')}</p>
               </div>
             ) : loans.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-slate-100 rounded-3xl p-6">
-                <p className="text-slate-400 text-xs font-semibold">No loans submitted yet.</p>
-                <p className="text-[10px] text-slate-400 mt-2">Fill the application on the left to start drawing financing reserves.</p>
+                <p className="text-slate-400 text-xs font-semibold">{t('noLoansSubmitted', 'No loans submitted yet.')}</p>
+                <p className="text-[10px] text-slate-400 mt-2">{t('noLoansHint', 'Fill the application on the left to start drawing financing reserves.')}</p>
               </div>
             ) : (
               <div className="max-h-[320px] overflow-y-auto space-y-4 pr-1">
@@ -369,9 +369,9 @@ export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUs
           </div>
 
           <div className="border-t border-slate-100 pt-6 mt-6 md:mt-2">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans mb-2">Security Note</h4>
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans mb-2">{t('securityNote', 'Security Note')}</h4>
             <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-              Applying for loans requires fully authorized KYC credentials. All disbursements are logged safely on your transaction profile instantly upon clearance.
+              {t('loanSecurityNote', 'Applying for loans requires fully authorized KYC credentials. All disbursements are logged safely on your transaction profile instantly upon clearance.')}
             </p>
           </div>
         </div>

@@ -128,8 +128,8 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
           <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 mb-8 flex items-start gap-4">
             <CheckCircle className="w-8 h-8 text-emerald-500 shrink-0 mt-1" />
             <div>
-              <h4 className="text-emerald-950 font-bold text-lg mb-1">Identity Verified (Level 3)</h4>
-              <p className="text-emerald-700 text-sm font-medium">Your profile has been fully authorized under regulatory compliance. Your daily transfer limits are active and loans can be processed instantly.</p>
+              <h4 className="text-emerald-950 font-bold text-lg mb-1">{t('kycVerifiedTitle', 'Identity Verified (Level 3)')}</h4>
+              <p className="text-emerald-700 text-sm font-medium">{t('kycVerifiedBody', 'Your profile has been fully authorized under regulatory compliance. Your daily transfer limits are active and loans can be processed instantly.')}</p>
             </div>
           </div>
         );
@@ -138,8 +138,8 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
           <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 mb-8 flex items-start gap-4">
             <Clock className="w-8 h-8 text-slate-500 shrink-0 mt-1 animate-pulse" />
             <div>
-              <h4 className="text-slate-800 font-bold text-lg mb-1">Verification Review In Progress</h4>
-              <p className="text-slate-500 text-sm font-medium">Your documents are under review by our compliance team. Verification is typically completed within 15-30 minutes. You can apply for test loans once verified.</p>
+              <h4 className="text-slate-800 font-bold text-lg mb-1">{t('kycPendingTitle', 'Verification Review In Progress')}</h4>
+              <p className="text-slate-500 text-sm font-medium">{t('kycPendingBody', 'Your documents are under review by our compliance team. Verification is typically completed within 15-30 minutes. You can apply for test loans once verified.')}</p>
             </div>
           </div>
         );
@@ -148,8 +148,8 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
           <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 mb-8 flex items-start gap-4">
             <AlertTriangle className="w-8 h-8 text-rose-500 shrink-0 mt-1" />
             <div>
-              <h4 className="text-rose-950 font-bold text-lg mb-1">Identity Verification Failed</h4>
-              <p className="text-rose-700 text-sm font-medium">Our system could not verify the documents loaded. Please ensure the photos are clearly legible and the government ID matches your profile registration.</p>
+              <h4 className="text-rose-950 font-bold text-lg mb-1">{t('kycRejectedTitle', 'Identity Verification Failed')}</h4>
+              <p className="text-rose-700 text-sm font-medium">{t('kycRejectedBody', 'Our system could not verify the documents loaded. Please ensure the photos are clearly legible and the government ID matches your profile registration.')}</p>
             </div>
           </div>
         );
@@ -158,8 +158,8 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
           <div className="bg-amber-50 border border-amber-100 rounded-3xl p-6 mb-8 flex items-start gap-4">
             <AlertTriangle className="w-8 h-8 text-amber-500 shrink-0 mt-1" />
             <div>
-              <h4 className="text-amber-950 font-bold text-lg mb-1">Verification Required Before Loans</h4>
-              <p className="text-amber-700 text-sm font-medium">To protect your funds and comply with financial licensing terms, please verify your identity with a valid Government ID.</p>
+              <h4 className="text-amber-950 font-bold text-lg mb-1">{t('kycRequiredTitle', 'Verification Required Before Loans')}</h4>
+              <p className="text-amber-700 text-sm font-medium">{t('kycRequiredBody', 'To protect your funds and comply with financial licensing terms, please verify your identity with a valid Government ID.')}</p>
             </div>
           </div>
         );
@@ -203,7 +203,7 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
             {/* SSN Field */}
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                SSN
+                {t('ssnLabel', 'SSN')}
               </label>
               <div className="relative">
                 <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
@@ -225,7 +225,7 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
               {/* Front Side */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                  Front Image Cover
+                  {t('frontImageLabel', 'Front Image Cover')}
                 </label>
                 
                 <div 
@@ -267,7 +267,7 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
               {/* Back Side */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                  Back Image Cover
+                  {t('backImageLabel', 'Back Image Cover')}
                 </label>
 
                 <div 
@@ -316,7 +316,7 @@ export default function VerifyIdentityPage({ user, onKycSubmitted, lang = 'en' }
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                'Submit Identification'
+                t('submitIdentification', 'Submit Identification')
               )}
             </button>
 

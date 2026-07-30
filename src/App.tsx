@@ -558,7 +558,7 @@ setIsLoggedIn(true);
       case 'dashboard':
         return <DashboardOverview onActionClick={handleActionClick} balance={balance} transactions={transactions} user={currentUser} formatUserCurrency={formatUserCurrency} />;
       case 'deposit':
-        return <DepositPage formatCurrency={formatUserCurrency} />;
+        return <DepositPage formatCurrency={formatUserCurrency} lang={lang} />;
       case 'joint-accounts':
         return <div className="max-w-5xl mx-auto py-4 md:py-8"><JointAccountsPanel currentUser={currentUser} onBalancesChanged={syncUserData} /></div>;
       case 'local-transfer':
@@ -581,6 +581,7 @@ setIsLoggedIn(true);
             availableBalance={balance}
             currencySymbol={getCurrencySymbol()}
             formatUserCurrency={formatUserCurrency}
+            lang={lang}
             onTransferSubmit={(data: any) => {
               setPendingTransfer({
                 txnId: `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
