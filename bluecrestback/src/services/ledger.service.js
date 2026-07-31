@@ -229,16 +229,25 @@ async function postEntry(data) {
 async function markEntryStatus(reference, status) {
     return await db.withTransaction(async () => {
         const existing = await transactionRepository.getTransactionByReference(reference);
+        const normalizedStatus = String(status || '').toUpperCase();
 
         if (!existing) {
             return null;
         }
 
-        if (existing.status === 'COMPLETED') {
+        if (String(existing.status || '').toUpperCase() === normalizedStatus) {
             return existing;
         }
 
-        return await transactionRepository.updateTransactionStatus(reference, status);
+        if (String(existing.status || '').toUpperCase() === 'COMPLETED' && ['FAILED', 'REVERSED', 'DECLINED', 'REJECTED'].includes(normalizedStatus)) {
+            await applyBalanceMovement({
+                ...existing,
+                type: existing.type === 'CREDIT' ? 'DEBIT' : 'CREDIT',
+                amount: Number(existing.amount)
+            });
+        }
+
+        return await transactionRepository.updateTransactionStatus(reference, normalizedStatus);
     });
 }
 
@@ -252,14 +261,7 @@ async function reverseEntry(originalEntry, actorId) {
         throw new Error('Only completed transactions can be reversed');
     }
 
-    const reversalData = buildReversalTransactionData({
-        ...originalEntry,
-        created_by: actorId || originalEntry.created_by || null
-    });
-
-    const reversal = await postEntry(reversalData);
-
-    await transactionRepository.updateTransactionStatus(originalEntry.reference, 'REVERSED');
+    const updated = await markEntryStatus(originalEntry.reference, 'FAILED');
 
     const user = await userRepository.findUserById(originalEntry.user_id);
     if (user) {
@@ -276,9 +278,9 @@ async function reverseEntry(originalEntry, actorId) {
     return {
         original: {
             ...originalEntry,
-            status: 'REVERSED'
+            status: 'FAILED'
         },
-        reversal
+        reversal: updated
     };
 }
 

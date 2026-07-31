@@ -2011,7 +2011,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div className="flex flex-wrap gap-2">
-                    {['ALL', 'PENDING', 'COMPLETED', 'DECLINED'].map((status) => (
+                    {['ALL', 'PENDING', 'COMPLETED', 'FAILED', 'DECLINED'].map((status) => (
                       <button
                         key={status}
                         onClick={() => setTransactionStatusFilter(status)}
@@ -2110,7 +2110,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <RotateCcw className="w-3.5 h-3.5" />
-                                  {reversingTransactionReference === transaction.reference ? 'Reversing…' : 'Reverse'}
+                                  {reversingTransactionReference === transaction.reference ? 'Updating…' : 'Mark failed'}
                                 </button>
                               </td>
                             </tr>

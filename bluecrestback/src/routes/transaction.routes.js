@@ -74,7 +74,8 @@ async function transactionRoutes(
             return true;
         }
 
-        const reference = decodeURIComponent(req.url.split('/').slice(3, -1).join('/'));
+        const match = req.url.match(/^\/api\/v1\/transactions\/(.+)\/reverse$/);
+        const reference = match ? decodeURIComponent(match[1]) : '';
 
         return transactionController
             .reverse(
