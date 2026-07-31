@@ -60,6 +60,31 @@ async function transactionRoutes(
     }
 
     if (
+        req.method === 'POST' &&
+        /^\/api\/v1\/transactions\/.+\/reverse$/.test(req.url)
+    ) {
+
+        const adminAuthorized =
+            await requireAdmin(
+                req,
+                res
+            );
+
+        if (!adminAuthorized) {
+            return true;
+        }
+
+        const reference = decodeURIComponent(req.url.split('/').slice(3, -1).join('/'));
+
+        return transactionController
+            .reverse(
+                req,
+                res,
+                reference
+            );
+    }
+
+    if (
         req.method === 'GET' &&
         req.url.startsWith(
             '/api/v1/transactions/user/'

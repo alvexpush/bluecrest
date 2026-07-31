@@ -38,6 +38,27 @@ function formatTransactionDate(value) {
     }).format(date);
 }
 
+function buildReversalTransactionData(entry) {
+    const originalType = String(entry.type || '').toUpperCase();
+    const reversalType = originalType === 'CREDIT' ? 'DEBIT' : 'CREDIT';
+    const baseDescription = String(entry.description || (originalType === 'CREDIT' ? 'Account Deposit' : 'Account Debit')).trim();
+
+    return {
+        reference: entry.reference ? `RVL-${String(entry.reference).replace(/^RVL-/, '')}` : generateReference('RVL'),
+        type: reversalType,
+        category: 'reversal',
+        amount: Number(entry.amount),
+        currency: entry.currency || 'USD',
+        status: 'COMPLETED',
+        description: `Reversal of ${baseDescription}`,
+        created_by: entry.created_by || null,
+        transaction_date: entry.transaction_date || null,
+        origin_name: entry.origin_name || null,
+        origin_bank: entry.origin_bank || null,
+        origin_account_number: entry.origin_account_number || null
+    };
+}
+
 async function createAccountActivityNotification({ userId, accountKind, entry, actorId }) {
     const credited = entry.type === 'CREDIT';
     const accountLabel = accountKind === 'JOINT' ? 'joint account' : 'account';
@@ -221,6 +242,46 @@ async function markEntryStatus(reference, status) {
     });
 }
 
+async function reverseEntry(originalEntry, actorId) {
+    if (!originalEntry) {
+        throw new Error('Transaction not found');
+    }
+
+    const status = String(originalEntry.status || '').toUpperCase();
+    if (status !== 'COMPLETED') {
+        throw new Error('Only completed transactions can be reversed');
+    }
+
+    const reversalData = buildReversalTransactionData({
+        ...originalEntry,
+        created_by: actorId || originalEntry.created_by || null
+    });
+
+    const reversal = await postEntry(reversalData);
+
+    await transactionRepository.updateTransactionStatus(originalEntry.reference, 'REVERSED');
+
+    const user = await userRepository.findUserById(originalEntry.user_id);
+    if (user) {
+        await notificationRepository.createNotification({
+            user_id: originalEntry.user_id,
+            title: 'Transaction reversed',
+            message: `Your transaction of ${formatMoney(originalEntry.amount, originalEntry.currency)} has been reversed. Please contact your bank if you need further assistance.`,
+            type: 'WARNING',
+            action_link: '/history',
+            created_by: actorId || null
+        });
+    }
+
+    return {
+        original: {
+            ...originalEntry,
+            status: 'REVERSED'
+        },
+        reversal
+    };
+}
+
 async function adjustBalanceTo(userId, targetBalance, metadata = {}) {
     return await db.withTransaction(async () => {
         const user = await userRepository.findUserById(userId);
@@ -270,6 +331,8 @@ async function adjustBalanceTo(userId, targetBalance, metadata = {}) {
 module.exports = {
     postEntry,
     markEntryStatus,
+    reverseEntry,
     adjustBalanceTo,
-    generateReference
+    generateReference,
+    buildReversalTransactionData
 };

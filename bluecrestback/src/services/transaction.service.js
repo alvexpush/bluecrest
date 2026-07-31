@@ -135,10 +135,21 @@ async function updateTransactionStatus(reference, status) {
     return await ledgerService.markEntryStatus(reference, status);
 }
 
+async function reverseTransaction(reference, actorId) {
+    const existing = await transactionRepository.getTransactionByReference(reference);
+
+    if (!existing) {
+        throw new Error('Transaction not found');
+    }
+
+    return await ledgerService.reverseEntry(existing, actorId);
+}
+
 module.exports = {
     createTransaction,
     fetchTransactions,
     fetchUserTransactions,
     createBatchTransactions,
-    updateTransactionStatus
+    updateTransactionStatus,
+    reverseTransaction
 };

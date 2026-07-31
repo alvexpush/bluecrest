@@ -9,6 +9,7 @@ import {
   DollarSign,
   AlertTriangle,
   RefreshCw,
+  RotateCcw,
   Lock,
   Unlock,
   PlusCircle,
@@ -163,6 +164,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   const [transactionStatusFilter, setTransactionStatusFilter] = useState('ALL');
   const [isLoadingUserTransactions, setIsLoadingUserTransactions] = useState(false);
   const [userTransactionsError, setUserTransactionsError] = useState('');
+  const [reversingTransactionReference, setReversingTransactionReference] = useState<string | null>(null);
 
   const formatCurrency = formatUserCurrency || ((amt: number) => `$${amt.toLocaleString()}`);
   const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
@@ -267,6 +269,36 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
       setUserTransactionsError(error instanceof Error ? error.message : 'Failed to fetch user transactions.');
     } finally {
       setIsLoadingUserTransactions(false);
+    }
+  };
+
+  const handleReverseTransaction = async (transaction: any) => {
+    if (!transaction?.reference) return;
+    setReversingTransactionReference(transaction.reference);
+    setResponseMsg('');
+
+    try {
+      const res = await fetch(`/api/v1/transactions/${encodeURIComponent(transaction.reference)}/reverse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const payload = await res.json();
+
+      if (!res.ok) {
+        throw new Error(payload.error?.message || payload.error || 'Failed to reverse transaction.');
+      }
+
+      setResponseMsg('Transaction reversed and the member was notified.');
+      if (transactionUser) {
+        await handleViewUserTransactions(transactionUser);
+      }
+    } catch (error) {
+      setResponseMsg(error instanceof Error ? error.message : 'Failed to reverse transaction.');
+    } finally {
+      setReversingTransactionReference(null);
     }
   };
 
@@ -2028,6 +2060,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                           <th className="p-4">Type</th>
                           <th className="p-4">Amount</th>
                           <th className="p-4">Status</th>
+                          <th className="p-4">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -2064,8 +2097,21 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                                     ? "bg-emerald-50 text-emerald-600"
                                     : status === 'PENDING'
                                       ? "bg-amber-50 text-amber-600"
-                                      : "bg-rose-50 text-rose-600"
+                                      : status === 'REVERSED'
+                                        ? "bg-violet-50 text-violet-600"
+                                        : "bg-rose-50 text-rose-600"
                                 )}>{status}</span>
+                              </td>
+                              <td className="p-4">
+                                <button
+                                  type="button"
+                                  onClick={() => handleReverseTransaction(transaction)}
+                                  disabled={status !== 'COMPLETED' || reversingTransactionReference === transaction.reference}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  {reversingTransactionReference === transaction.reference ? 'Reversing…' : 'Reverse'}
+                                </button>
                               </td>
                             </tr>
                           );

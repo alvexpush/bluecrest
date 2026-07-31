@@ -146,9 +146,32 @@ async function createBatch(
     }
 }
 
+async function reverse(
+    req,
+    res,
+    reference
+) {
+    try {
+        const result = await transactionService.reverseTransaction(reference, req.user.id);
+
+        return successResponse(
+            res,
+            result,
+            'Transaction reversed successfully'
+        );
+    } catch (error) {
+        return errorResponse(
+            res,
+            error.message,
+            500
+        );
+    }
+}
+
 module.exports = {
     create,
     getAll,
     getUserTransactions,
-    createBatch
+    createBatch,
+    reverse
 };
