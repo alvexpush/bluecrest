@@ -165,6 +165,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
   const [isLoadingUserTransactions, setIsLoadingUserTransactions] = useState(false);
   const [userTransactionsError, setUserTransactionsError] = useState('');
   const [reversingTransactionReference, setReversingTransactionReference] = useState<string | null>(null);
+  const [failingTransactionReference, setFailingTransactionReference] = useState<string | null>(null);
 
   const formatCurrency = formatUserCurrency || ((amt: number) => `$${amt.toLocaleString()}`);
   const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
@@ -274,6 +275,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
   const handleReverseTransaction = async (transaction: any) => {
     if (!transaction?.reference) return;
+    if (!window.confirm(`Reverse transaction ${transaction.reference}? This will create an opposite ledger entry and adjust the member's balance.`)) return;
     setReversingTransactionReference(transaction.reference);
     setResponseMsg('');
 
@@ -299,6 +301,37 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
       setResponseMsg(error instanceof Error ? error.message : 'Failed to reverse transaction.');
     } finally {
       setReversingTransactionReference(null);
+    }
+  };
+
+  const handleMarkTransactionFailed = async (transaction: any) => {
+    if (!transaction?.reference) return;
+    if (!window.confirm(`Mark transaction ${transaction.reference} as failed? This will undo its balance movement.`)) return;
+    setFailingTransactionReference(transaction.reference);
+    setResponseMsg('');
+
+    try {
+      const res = await fetch(`/api/v1/transactions/${encodeURIComponent(transaction.reference)}/fail`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const payload = await res.json();
+
+      if (!res.ok) {
+        throw new Error(payload.error?.message || payload.error || 'Failed to update transaction.');
+      }
+
+      setResponseMsg('Transaction marked as failed.');
+      if (transactionUser) {
+        await handleViewUserTransactions(transactionUser);
+      }
+    } catch (error) {
+      setResponseMsg(error instanceof Error ? error.message : 'Failed to update transaction.');
+    } finally {
+      setFailingTransactionReference(null);
     }
   };
 
@@ -2011,7 +2044,7 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
 
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div className="flex flex-wrap gap-2">
-                    {['ALL', 'PENDING', 'COMPLETED', 'FAILED', 'DECLINED'].map((status) => (
+                    {['ALL', 'PENDING', 'COMPLETED', 'FAILED', 'REVERSED', 'DECLINED'].map((status) => (
                       <button
                         key={status}
                         onClick={() => setTransactionStatusFilter(status)}
@@ -2103,15 +2136,26 @@ export default function AdminPanel({ currentUser, formatUserCurrency }: AdminPan
                                 )}>{status}</span>
                               </td>
                               <td className="p-4">
-                                <button
-                                  type="button"
-                                  onClick={() => handleReverseTransaction(transaction)}
-                                  disabled={status !== 'COMPLETED' || reversingTransactionReference === transaction.reference}
-                                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                  {reversingTransactionReference === transaction.reference ? 'Updating…' : 'Mark failed'}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkTransactionFailed(transaction)}
+                                    disabled={status !== 'COMPLETED' || failingTransactionReference === transaction.reference || reversingTransactionReference === transaction.reference}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                    {failingTransactionReference === transaction.reference ? 'Updating…' : 'Mark failed'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReverseTransaction(transaction)}
+                                    disabled={status !== 'COMPLETED' || reversingTransactionReference === transaction.reference || failingTransactionReference === transaction.reference}
+                                    className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-2.5 py-1.5 text-[10px] font-bold text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    {reversingTransactionReference === transaction.reference ? 'Reversing…' : 'Reverse'}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );

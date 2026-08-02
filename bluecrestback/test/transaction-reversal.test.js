@@ -7,6 +7,8 @@ const userRepository = require('../src/repositories/user.repository');
 
 test('buildReversalTransactionData creates an opposite completed entry for completed transactions', () => {
   const reversal = buildReversalTransactionData({
+    user_id: 7,
+    account_id: 11,
     type: 'CREDIT',
     amount: 250,
     currency: 'USD',
@@ -16,6 +18,8 @@ test('buildReversalTransactionData creates an opposite completed entry for compl
   });
 
   assert.equal(reversal.type, 'DEBIT');
+  assert.equal(reversal.user_id, 7);
+  assert.equal(reversal.account_id, 11);
   assert.equal(reversal.category, 'reversal');
   assert.equal(reversal.status, 'COMPLETED');
   assert.equal(reversal.amount, 250);

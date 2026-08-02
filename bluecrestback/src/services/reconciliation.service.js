@@ -13,8 +13,8 @@ async function reconcileUser(userId) {
 
     const totals = await db.query(
         `SELECT
-            COALESCE(SUM(CASE WHEN type = 'CREDIT' AND status = 'COMPLETED' THEN amount ELSE 0 END), 0) AS credits,
-            COALESCE(SUM(CASE WHEN type = 'DEBIT' AND status = 'COMPLETED' THEN amount ELSE 0 END), 0) AS debits
+            COALESCE(SUM(CASE WHEN type = 'CREDIT' AND status IN ('COMPLETED', 'REVERSED') THEN amount ELSE 0 END), 0) AS credits,
+            COALESCE(SUM(CASE WHEN type = 'DEBIT' AND status IN ('COMPLETED', 'REVERSED') THEN amount ELSE 0 END), 0) AS debits
          FROM transactions
          WHERE user_id = ?`,
         [userId]

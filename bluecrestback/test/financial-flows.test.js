@@ -174,6 +174,33 @@ test('invalid or unaffordable transfer amounts create no ledger entry', async ()
     assert.equal((await transactionRepository.getUserTransactions(sender.id)).length, beforeTransactions.length);
 });
 
+test('admin reversal creates an opposite ledger entry and restores the balance', async () => {
+    const balanceBefore = Number((await userRepository.findUserById(2)).balance);
+    const original = await ledgerService.postEntry({
+        user_id: 2,
+        reference: 'ADMIN-REVERSAL-TEST',
+        type: 'CREDIT',
+        category: 'admin_adjustment',
+        amount: 125,
+        currency: 'USD',
+        status: 'COMPLETED',
+        description: 'Reversal test credit',
+        created_by: 1
+    });
+
+    assert.equal(Number((await userRepository.findUserById(2)).balance), balanceBefore + 125);
+
+    const result = await ledgerService.reverseEntry(original, 1);
+    const storedOriginal = await transactionRepository.getTransactionByReference(original.reference);
+    const storedReversal = await transactionRepository.getTransactionByReference(result.reversal.reference);
+
+    assert.equal(storedOriginal.status, 'REVERSED');
+    assert.equal(storedReversal.type, 'DEBIT');
+    assert.equal(storedReversal.category, 'reversal');
+    assert.equal(Number(storedReversal.amount), 125);
+    assert.equal(Number((await userRepository.findUserById(2)).balance), balanceBefore);
+});
+
 test('pending external transfer moves no money and completion debits exactly once', async () => {
     const statusEmailCount = transferStatusEmails.length;
     const sender = await userRepository.findUserById(2);

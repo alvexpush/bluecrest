@@ -168,10 +168,33 @@ async function reverse(
     }
 }
 
+async function markFailed(
+    req,
+    res,
+    reference
+) {
+    try {
+        const result = await transactionService.failTransaction(reference);
+
+        return successResponse(
+            res,
+            result,
+            'Transaction marked as failed successfully'
+        );
+    } catch (error) {
+        return errorResponse(
+            res,
+            error.message,
+            500
+        );
+    }
+}
+
 module.exports = {
     create,
     getAll,
     getUserTransactions,
     createBatch,
-    reverse
+    reverse,
+    markFailed
 };

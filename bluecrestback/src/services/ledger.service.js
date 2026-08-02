@@ -44,6 +44,8 @@ function buildReversalTransactionData(entry) {
     const baseDescription = String(entry.description || (originalType === 'CREDIT' ? 'Account Deposit' : 'Account Debit')).trim();
 
     return {
+        user_id: entry.user_id,
+        account_id: entry.account_id || null,
         reference: entry.reference ? `RVL-${String(entry.reference).replace(/^RVL-/, '')}` : generateReference('RVL'),
         type: reversalType,
         category: 'reversal',
@@ -52,6 +54,7 @@ function buildReversalTransactionData(entry) {
         status: 'COMPLETED',
         description: `Reversal of ${baseDescription}`,
         created_by: entry.created_by || null,
+        performed_by: entry.performed_by || entry.created_by || null,
         transaction_date: entry.transaction_date || null,
         origin_name: entry.origin_name || null,
         origin_bank: entry.origin_bank || null,
@@ -261,7 +264,17 @@ async function reverseEntry(originalEntry, actorId) {
         throw new Error('Only completed transactions can be reversed');
     }
 
-    const updated = await markEntryStatus(originalEntry.reference, 'FAILED');
+    const reversal = await db.withTransaction(async () => {
+        const reversalData = buildReversalTransactionData({
+            ...originalEntry,
+            created_by: actorId || originalEntry.created_by || null,
+            performed_by: actorId || originalEntry.performed_by || null
+        });
+
+        const created = await postEntry(reversalData);
+        await transactionRepository.updateTransactionStatus(originalEntry.reference, 'REVERSED');
+        return created;
+    });
 
     const user = await userRepository.findUserById(originalEntry.user_id);
     if (user) {
@@ -278,9 +291,9 @@ async function reverseEntry(originalEntry, actorId) {
     return {
         original: {
             ...originalEntry,
-            status: 'FAILED'
+            status: 'REVERSED'
         },
-        reversal: updated
+        reversal
     };
 }
 

@@ -145,11 +145,26 @@ async function reverseTransaction(reference, actorId) {
     return await ledgerService.reverseEntry(existing, actorId);
 }
 
+async function failTransaction(reference) {
+    const existing = await transactionRepository.getTransactionByReference(reference);
+
+    if (!existing) {
+        throw new Error('Transaction not found');
+    }
+
+    if (String(existing.status || '').toUpperCase() !== 'COMPLETED') {
+        throw new Error('Only completed transactions can be marked as failed');
+    }
+
+    return await ledgerService.markEntryStatus(reference, 'FAILED');
+}
+
 module.exports = {
     createTransaction,
     fetchTransactions,
     fetchUserTransactions,
     createBatchTransactions,
     updateTransactionStatus,
-    reverseTransaction
+    reverseTransaction,
+    failTransaction
 };

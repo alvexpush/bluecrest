@@ -86,6 +86,32 @@ async function transactionRoutes(
     }
 
     if (
+        req.method === 'POST' &&
+        /^\/api\/v1\/transactions\/.+\/fail$/.test(req.url)
+    ) {
+
+        const adminAuthorized =
+            await requireAdmin(
+                req,
+                res
+            );
+
+        if (!adminAuthorized) {
+            return true;
+        }
+
+        const match = req.url.match(/^\/api\/v1\/transactions\/(.+)\/fail$/);
+        const reference = match ? decodeURIComponent(match[1]) : '';
+
+        return transactionController
+            .markFailed(
+                req,
+                res,
+                reference
+            );
+    }
+
+    if (
         req.method === 'GET' &&
         req.url.startsWith(
             '/api/v1/transactions/user/'
