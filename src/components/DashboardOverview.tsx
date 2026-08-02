@@ -157,24 +157,24 @@ export default function DashboardOverview({
       {/* Top Row: Balance & Card */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Balance Card */}
-        <div className="dashboard-balance-card flex-1 bg-[#003399] rounded-[2.5rem] border border-white/10 shadow-2xl p-6 md:p-10 flex flex-col justify-between text-white relative overflow-hidden">
+        <div className="dashboard-balance-card min-w-0 flex-1 bg-[#003399] rounded-[2.5rem] border border-white/10 shadow-2xl p-6 md:p-10 flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
           <div className="dashboard-orbit dashboard-orbit-primary" aria-hidden="true" />
           <div className="dashboard-orbit dashboard-orbit-secondary" aria-hidden="true" />
           <div className="dashboard-glow-orb" aria-hidden="true" />
-          <div className="relative z-10">
+          <div className="relative z-10 min-w-0">
             <p className="text-[10px] md:text-sm text-blue-200/60 mb-2 font-bold uppercase tracking-widest">Total Balance</p>
-            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter">
+            <h2 className="dashboard-balance-value max-w-full font-bold tracking-tighter">
               {formatCurrency(checkingBalance + savingsBalance)}
             </h2>
-            <div className="mt-6 grid max-w-xl grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
+            <div className="mt-6 grid max-w-xl grid-cols-1 min-[440px]:grid-cols-2 gap-3">
+              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-blue-200/70">Checking</p>
-                <p className="mt-1 text-lg font-extrabold tracking-tight">{formatCurrency(checkingBalance)}</p>
+                <p className="dashboard-balance-break mt-1 text-base sm:text-lg font-extrabold tracking-tight">{formatCurrency(checkingBalance)}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
+              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-blue-200/70">Savings</p>
-                <p className="mt-1 text-lg font-extrabold tracking-tight">{formatCurrency(savingsBalance)}</p>
+                <p className="dashboard-balance-break mt-1 text-base sm:text-lg font-extrabold tracking-tight">{formatCurrency(savingsBalance)}</p>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">

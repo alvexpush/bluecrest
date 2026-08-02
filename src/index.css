@@ -83,6 +83,17 @@
   animation: dashboard-card-glow 5.5s ease-in-out infinite;
 }
 
+.dashboard-balance-value {
+  font-size: clamp(1.75rem, 8vw, 3.75rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-balance-break {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .dashboard-orbit {
   position: absolute;
   z-index: 0;
