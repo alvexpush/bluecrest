@@ -538,6 +538,7 @@ setIsLoggedIn(true);
     const routingMap: Record<string, string> = {
       'transfer': 'local-transfer',
       'local-transfer': 'local-transfer',
+      'deposit': 'deposit',
       'history': 'history',
       'card': 'atm',
       'atm': 'atm',
