@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import {
   CheckCircle2,
@@ -10,7 +10,10 @@ import {
   ShieldCheck,
   Sparkles,
   Upload,
-  Wifi
+  Wifi,
+  Globe2,
+  SlidersHorizontal,
+  Zap
 } from 'lucide-react';
 
 type CardApplication = {
@@ -69,6 +72,11 @@ export default function CardsPage({
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const applicationRef = useRef<HTMLDivElement>(null);
+
+  const scrollToApplication = () => {
+    applicationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const fetchCards = useCallback(async () => {
     try {
@@ -220,17 +228,36 @@ export default function CardsPage({
 
   return (
     <div className="max-w-6xl mx-auto py-4 md:py-8 space-y-8">
-      <section className="rounded-[2.5rem] bg-gradient-to-br from-[#003399] via-blue-800 to-indigo-950 p-8 md:p-10 text-white overflow-hidden relative">
+      <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-fuchsia-700 via-[#0755c9] to-cyan-500 p-7 text-white shadow-xl shadow-blue-900/15 md:p-10">
         <div className="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-cyan-300/10 blur-2xl" />
-        <div className="relative max-w-2xl">
+        <div className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative max-w-3xl">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             Blue Crest Debit
           </span>
-          <h2 className="mt-5 text-3xl md:text-4xl font-extrabold tracking-tight">A card created only when you’re ready.</h2>
-          <p className="mt-3 text-sm text-blue-100/80 leading-relaxed">
-            Apply for your debit card, wait for approval, complete the arranged issuance payment, and receive the card after an administrator confirms and releases it.
+          <h2 className="mt-5 text-3xl font-extrabold tracking-tight md:text-4xl">Debit cards made easy</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-blue-50/90">
+            Apply for a secure Blue Crest card for everyday payments, with worldwide acceptance, spending controls, and fast issuance after approval.
           </p>
+          <div className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+            {[
+              { label: 'Secure', detail: 'Protected payments', icon: ShieldCheck },
+              { label: 'Global', detail: 'Worldwide access', icon: Globe2 },
+              { label: 'Control', detail: 'Spending limits', icon: SlidersHorizontal },
+              { label: 'Fast', detail: 'Quick issuance', icon: Zap },
+            ].map(feature => (
+              <div key={feature.label} className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15"><feature.icon className="h-4 w-4" /></span>
+                <span><strong className="block text-xs">{feature.label}</strong><span className="block text-[9px] text-blue-50/75">{feature.detail}</span></span>
+              </div>
+            ))}
+          </div>
+          {!activeApplication && !releasedCard && (
+            <button type="button" onClick={scrollToApplication} className="mt-7 inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/15 px-5 py-3 text-sm font-extrabold shadow-lg backdrop-blur-sm transition-colors hover:bg-white/25">
+              <span className="text-lg leading-none">+</span> Apply now
+            </button>
+          )}
         </div>
       </section>
 
@@ -319,8 +346,23 @@ export default function CardsPage({
           </div>
         </div>
       ) : (
-        <div>
-          <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
+        <div className="space-y-8">
+          <section className="rounded-[2.5rem] border border-slate-100 bg-white p-7 text-center shadow-sm md:p-10" aria-labelledby="your-cards-heading">
+            <div className="flex items-center justify-between text-left">
+              <h3 id="your-cards-heading" className="text-xl font-extrabold text-slate-900">Your Cards</h3>
+              <button type="button" onClick={scrollToApplication} className="text-xs font-extrabold text-[#0755c9]">⊕ New Card</button>
+            </div>
+            <div className="mx-auto mt-8 flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-gradient-to-br from-fuchsia-600 to-sky-500 text-white shadow-[0_14px_35px_rgba(37,99,235,0.30)]">
+              <CreditCard className="h-9 w-9" />
+            </div>
+            <h4 className="mt-5 text-2xl font-extrabold text-slate-900">No cards yet</h4>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Get started by applying for your first Blue Crest debit card. It only takes a few minutes.</p>
+            <button type="button" onClick={scrollToApplication} className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-indigo-600 to-sky-500 px-7 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20">
+              <span className="text-lg leading-none">+</span> Apply for your first card
+            </button>
+          </section>
+
+          <div ref={applicationRef} className="scroll-mt-24 rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm md:p-8">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-blue-50 text-[#003399] flex items-center justify-center">
                 <CreditCard className="w-5 h-5" />

@@ -127,12 +127,12 @@ export default function SupportWidget({ isAuthenticated = true, embedded = false
       </form>
     </section>}
 
-    {!embedded && !open && showGreeting && <div className="fixed z-[98] bottom-[5.75rem] right-3 sm:right-5 md:right-7 flex items-start gap-2 max-w-[calc(100vw-1.5rem)]">
+    {!embedded && !open && showGreeting && <div className="fixed z-[98] bottom-[10.5rem] right-3 flex max-w-[calc(100vw-1.5rem)] items-start gap-2 sm:right-5 lg:bottom-[5.75rem] lg:right-7">
       <button type="button" onClick={() => { setOpen(true); setShowGreeting(false); }} className="bg-white border border-slate-200 rounded-2xl rounded-br-sm px-4 py-3 shadow-xl text-left hover:border-blue-200 transition-colors"><span className="block text-sm font-extrabold text-slate-800">Need help?</span><span className="block text-[11px] text-slate-500 mt-0.5">Chat with Blue Crest Support</span></button>
       <button type="button" onClick={() => setShowGreeting(false)} className="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center shadow-md" aria-label="Dismiss support greeting"><X className="w-3.5 h-3.5"/></button>
     </div>}
 
-    {!embedded && <button type="button" onClick={() => { setOpen(value => !value); setShowGreeting(false); }} className="fixed z-[99] bottom-5 right-3 sm:right-5 md:right-7 w-16 h-16 rounded-full bg-gradient-to-br from-[#0755c9] to-[#003399] text-white shadow-[0_14px_35px_rgba(0,51,153,0.38)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform ring-4 ring-white" aria-label={open ? 'Close customer support' : 'Open customer support'}>
+    {!embedded && <button type="button" onClick={() => { setOpen(value => !value); setShowGreeting(false); }} className="fixed z-[99] bottom-24 right-3 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#0755c9] to-[#003399] text-white shadow-[0_14px_35px_rgba(0,51,153,0.38)] ring-4 ring-white transition-transform hover:scale-105 active:scale-95 sm:right-5 lg:bottom-5 lg:right-7 lg:h-16 lg:w-16" aria-label={open ? 'Close customer support' : 'Open customer support'}>
       {open ? <X className="w-7 h-7"/> : <MessageCircle className="w-7 h-7 fill-white/20"/>}
       {!open && <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-emerald-400 border-[3px] border-white" />}
     </button>}

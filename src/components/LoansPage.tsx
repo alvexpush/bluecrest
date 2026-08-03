@@ -19,7 +19,7 @@ export interface Loan {
   createdDate: string;
 }
 
-const MAX_ELIGIBLE_LOAN = 400;
+const MAX_ELIGIBLE_LOAN = 60;
 
 export default function LoansPage({ user, onNavigateToTab, lang = 'en', formatUserCurrency }: LoansPageProps) {
   const [loans, setLoans] = useState<Loan[]>([]);

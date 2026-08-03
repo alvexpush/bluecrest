@@ -26,6 +26,7 @@ import NotificationAlert from './components/NotificationAlert';
 import SupportWidget from './components/SupportWidget';
 import JointAccountsPanel from './components/JointAccountsPanel';
 import EmailVerificationBanner from './components/EmailVerificationBanner';
+import MobileBottomNav from './components/MobileBottomNav';
 import { detectLanguagePreference, getLanguageByCode, LanguageCode, normalizeLanguageCode } from './lib/translations';
 import { RestrictedModal, TransferSuccessModal, TransferCodeModal, TransferVerificationModal } from './components/Modals';
 import { motion, AnimatePresence } from 'motion/react';
@@ -700,7 +701,7 @@ return updated;
       <main className="flex-1 lg:ml-64 flex flex-col min-h-screen">
         <Header onMenuClick={() => setIsSidebarOpen(true)} onNotificationsClick={() => setActiveTab('notifications')} user={currentUser} lang={lang} />
 
-        <div className="p-4 md:p-8 flex-1 overflow-y-auto">
+        <div className="p-4 pb-32 md:p-8 md:pb-28 lg:pb-8 flex-1 overflow-y-auto">
           {String(currentUser.role || '').toUpperCase() !== 'ADMIN' && (
             <EmailVerificationBanner user={currentUser} onVerified={syncUserData} />
           )}
@@ -717,6 +718,8 @@ return updated;
           </AnimatePresence>
         </div>
       </main>
+
+      <MobileBottomNav activeTab={activeTab} onNavigate={setActiveTab} />
 
       <RestrictedModal
         isOpen={isRestrictedModalOpen}
