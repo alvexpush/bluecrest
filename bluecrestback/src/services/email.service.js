@@ -30,8 +30,11 @@ function zohoConfig() {
 async function readJsonResponse(response, operation) {
     const payload = await response.json().catch(() => ({}));
     const apiCode = Number(payload?.status?.code || 0);
-    if (!response.ok || (apiCode && apiCode >= 400)) {
-        const description = payload?.status?.description || payload?.error || payload?.message;
+    const oauthError = typeof payload?.error === 'string'
+        ? payload.error
+        : payload?.error?.message || payload?.error?.code;
+    if (!response.ok || oauthError || (apiCode && apiCode >= 400)) {
+        const description = payload?.error_description || payload?.status?.description || oauthError || payload?.message;
         throw new Error(`Zoho Mail ${operation} failed${description ? `: ${description}` : ` (HTTP ${response.status})`}`);
     }
     return payload;

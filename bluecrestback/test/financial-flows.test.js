@@ -497,6 +497,42 @@ test('email settings expose environment fallback and validate saved configuratio
     );
 });
 
+test('Zoho OAuth errors are reported instead of being hidden as a missing access token', async () => {
+    const keys = [
+        'ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN', 'ZOHO_ACCOUNT_ID',
+        'ZOHO_ACCOUNTS_URL', 'ZOHO_MAIL_API_URL', 'MAIL_FROM'
+    ];
+    const originalEnv = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+    const originalFetch = global.fetch;
+
+    Object.assign(process.env, {
+        ZOHO_CLIENT_ID: 'test-client',
+        ZOHO_CLIENT_SECRET: 'test-secret',
+        ZOHO_REFRESH_TOKEN: 'invalid-refresh',
+        ZOHO_ACCOUNT_ID: '12345',
+        ZOHO_ACCOUNTS_URL: 'https://accounts.example.test',
+        ZOHO_MAIL_API_URL: 'https://mail.example.test',
+        MAIL_FROM: 'sender@example.test'
+    });
+    global.fetch = async () => new Response(JSON.stringify({ error: 'invalid_code' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+    });
+
+    try {
+        await assert.rejects(
+            emailService.sendEmail({ to: 'recipient@example.test', subject: 'Zoho test', text: 'Hello' }),
+            /Zoho Mail authentication failed: invalid_code/
+        );
+    } finally {
+        global.fetch = originalFetch;
+        for (const key of keys) {
+            if (originalEnv[key] === undefined) delete process.env[key];
+            else process.env[key] = originalEnv[key];
+        }
+    }
+});
+
 test('Zoho API is preferred over SMTP and sends through HTTPS', async () => {
     const keys = [
         'ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN', 'ZOHO_ACCOUNT_ID',
